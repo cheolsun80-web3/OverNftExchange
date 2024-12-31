@@ -1,7 +1,7 @@
 export const env = {
     "contracts": {
         "WETH": "0x59c914C8ac6F212bb655737CC80d9Abc79A1e273",
-        "NFTExchange": "0x45b737bB344766209170a024a90bFE94E214c4d9.",
+        "NFTExchange": "0x45b737bB344766209170a024a90bFE94E214c4d9",
         "Multicall3": "0x03657CDcDA1523C073b5e09c37dd199E6fBD1b99",
     },
     "NFTs": [
