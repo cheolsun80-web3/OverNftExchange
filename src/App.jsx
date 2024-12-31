@@ -14,8 +14,7 @@ import { NFTCollection } from './pages/NFTCollection';
 
 import { env } from './env';
 
-// 로컬 체인 설정
-const localChain = {
+const overChain = {
   id: 54176,
   name: 'OverProtocol Mainnet',
   network: 'OverProtocol Mainnet',
@@ -24,8 +23,8 @@ const localChain = {
     symbol: 'OVER',
   },
   rpcUrls: {
-    default: { http: ['http://127.0.0.1:8545'] },
-    public: { http: ['http://127.0.0.1:8545'] },
+    default: { http: ['https://rpc.overprotocol.com'] },
+    public: { http: ['https://rpc.overprotocol.com'] },
   },
   contracts: {
     multicall3: {
@@ -63,13 +62,13 @@ const connectors = connectorsForWallets(
 const { wallets } = getDefaultWallets({
   appName: 'OverNftExchange',
   projectId: 'c827f82cc2a16ca18e73a3c7d189e06c', // WalletConnect Cloud에서 발급받은 프로젝트 ID
-  chains: [localChain]
+  chains: [overChain]
 });
 
 const config = createConfig({
-  chains: [localChain],
+  chains: [overChain],
   transports: {
-    [localChain.id]: http()
+    [overChain.id]: http()
   },
   wallets,
   connectors,
@@ -81,7 +80,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <WagmiConfig config={config}>
-        <RainbowKitProvider chains={[localChain]}>
+        <RainbowKitProvider chains={[overChain]}>
           <BrowserRouter>
             <Layout>
               <Routes>
