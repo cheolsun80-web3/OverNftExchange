@@ -16,6 +16,7 @@ export const NFTCollection = () => {
   const { address: wallet, isConnected } = useAccount();
   const [balance, setBalance] = useState(0);
   const [balanceWOVER, setBalanceWOVER] = useState(0);
+  const [balanceNFT, setBalanceNFT] = useState(0);
   const [asks, setAsks] = useState([]);
   const [bids, setBids] = useState([]);
   const [bidPrice, setBidPrice] = useState(0);
@@ -90,7 +91,6 @@ export const NFTCollection = () => {
     })();
   }, [address, wallet, isConnected, update]);
 
-  // 실제 컨트랙트에서 getActiveAsks 불러오기 (예시)
   useEffect(() => {
     (async () => {
       try {
@@ -143,110 +143,127 @@ export const NFTCollection = () => {
       }
     })();
   }, [address, publicClient, update, sortType]);
+
   useEffect(() => {
     (async () => {
-      try {
-        // function getBids(IERC721 nft) public view returns (BidLib.Bid[] memory) {
-        // struct Bidder { address bidder; uint256 nonce; } struct Bid { Bidder bidder; uint256 price; }
-        const getTopBid = await publicClient.readContract({
+      if (update == 0) {return;}
+      try{
+        const datas = [];
+        // 0. getTopBid
+        // 1. getBids
+        // 2. getTradeHistoryLast
+
+        datas.push({
           address: env.contracts.NFTExchange,
           abi: abi.NFTExchange,
           functionName: "getTopBid",
           args: [address],
         });
 
-        setTopBid({
-          bidder: getTopBid.bidder.bidder,
-          price: formatEther(getTopBid.price),
-        });
-        console.log("getTopBid:", topBid);
-        console.log("getTopBid:", getTopBid);
-        const data = await publicClient.readContract({
+        datas.push({
           address: env.contracts.NFTExchange,
           abi: abi.NFTExchange,
           functionName: "getBids",
           args: [address],
         });
 
-        const items = [];
-        for (const item of data || []) {
-          items.push({
-            bidder: item.bidder.bidder,
-            nonce: item.bidder.nonce,
-            price: formatEther(item.price),
-          });
-        }
-
-        // sort by price
-        items.sort((a, b) => {
-          return b.price - a.price;
-        });
-        setBids(items);
-      } catch (err) {
-        console.error(err);
-      }
-    })();
-  }, [address, publicClient, update]);
-  useEffect(() => {
-    (async () => {
-      try {
-        const data = await publicClient.readContract({
+        datas.push({
           address: env.contracts.NFTExchange,
           abi: abi.NFTExchange,
           functionName: "getTradeHistoryLast",
           args: [address, 100],
         });
-        console.log("Trade History:", data);
-        /*
-                struct TradeInfo {
-                    uint256 tokenId;
-                    address seller;
-                    address buyer;
-                    uint256 price;
-                    uint256 bn;
-                }
-            */
-        const items = [];
-        for (const item of data || []) {
-          items.push({
-            tokenId: Number(item.tokenId),
-            seller: item.seller,
-            buyer: item.buyer,
-            price: formatEther(item.price),
-            bn: Number(item.bn),
+
+        const results = await publicClient.multicall({
+          contracts: datas
+        });
+        console.log('Multicall3:', results);
+
+        {
+          const topBid = results[0].result;
+          setTopBid({
+            bidder: topBid.bidder.bidder,
+            price: formatEther(topBid.price),
           });
         }
-        setHistory(items);
-        console.log("History:", items);
+        {
+          const bids = results[1].result;
+          const items = [];
+          for (const item of bids || []) {
+            items.push({
+              bidder: item.bidder.bidder,
+              nonce: item.bidder.nonce,
+              price: formatEther(item.price),
+            });
+          }
+          items.sort((a, b) => {
+            return b.price - a.price;
+          });
+          setBids(items);
+        }
+        {
+          const tradeHistory = results[2].result;
+          const items = [];
+          for (const item of tradeHistory || []) {
+            items.push({
+              tokenId: Number(item.tokenId),
+              seller: item.seller,
+              buyer: item.buyer,
+              price: formatEther(item.price),
+              bn: Number(item.bn),
+            });
+          }
+          setHistory(items);
+        }
+
+        
       } catch (err) {
         console.error(err);
       }
     })();
-  }, [address, publicClient, update]);
+  }, [update]);
 
   useEffect(() => {
     (async () => {
+      if (updateBalance == 0) {return;}
       try {
         const balance = await publicClient.getBalance({ address: wallet });
         let balanceOver = formatEther(balance);
         // float point 4
         balanceOver = parseFloat(balanceOver).toFixed(4);
         setBalance(balanceOver);
+        
+        const datas = [];
+        // 0. balanceOf WETH
+        // 1. balanceOf NFT
 
-        const balanceWOVER = await publicClient.readContract({
+        datas.push({
           address: env.contracts.WETH,
           abi: abi.WETH,
           functionName: "balanceOf",
           args: [wallet],
         });
+        datas.push({
+          address: address,
+          abi: abi.ERC721,
+          functionName: "balanceOf",
+          args: [wallet],
+        });
+        const results = await publicClient.multicall({ contracts: datas });
+        console.log('updateBalance:', results);
+
+        const balanceWOVER = results[0].result;
+        const balanceNFT = Number(results[1].result);
         let balanceWOVEROver = formatEther(balanceWOVER);
         balanceWOVEROver = parseFloat(balanceWOVEROver).toFixed(4);
+
         setBalanceWOVER(balanceWOVEROver);
+        setBalanceNFT(balanceNFT);
       } catch (err) {
         console.error(err);
       }
     })();
-  }, [address, publicClient, update, updateBalance]);
+  }, [updateBalance]);
 
   // setInterval update balance over
   useEffect(() => {
@@ -256,11 +273,13 @@ export const NFTCollection = () => {
     const intervalUpdate = setInterval(() => {
       setUpdate(update + 1);
     }, 30000);
+    setUpdateBalance(updateBalance + 1);
+    setUpdate(update + 1);
     return () => {
       clearInterval(intervalUpdateBalance);
       clearInterval(intervalUpdate);
     }
-  }, [updateBalance]);
+  }, []);
 
   const tryWriteContractAsync = async (...args) => {
     try {
@@ -358,7 +377,7 @@ export const NFTCollection = () => {
     }
     await new Promise((resolve) => setTimeout(resolve, 6000));
     setIsWaiting(false);
-    setUpdate(update + 1);
+    setUpdateBalance(updateBalance+1);setUpdate(update + 1);
     setShowMyNftsModal(false);
   };
   const handleBid = async (price) => {
@@ -389,7 +408,7 @@ export const NFTCollection = () => {
     }
     await new Promise((resolve) => setTimeout(resolve, 6000));
     setIsWaiting(false);
-    setUpdate(update + 1);
+    setUpdateBalance(updateBalance+1);setUpdate(update + 1);
     setShowBidModal(false);
   };
 
@@ -414,7 +433,7 @@ export const NFTCollection = () => {
       console.log("waiting for isConfirming", isConfirming);
     }
     await new Promise((resolve) => setTimeout(resolve, 2000));
-    setUpdate(update + 1);
+    setUpdateBalance(updateBalance+1);setUpdate(update + 1);
   };
 
   const handleCancel = async (item) => {
@@ -437,7 +456,7 @@ export const NFTCollection = () => {
       console.log("waiting for isConfirming", isConfirming);
     }
     await new Promise((resolve) => setTimeout(resolve, 2000));
-    setUpdate(update + 1);
+    setUpdateBalance(updateBalance+1);setUpdate(update + 1);
   };
 
   const handleWithdrawWOVER = async () => {
@@ -457,7 +476,7 @@ export const NFTCollection = () => {
       console.log("waiting for isConfirming", isConfirming);
     }
     await new Promise((resolve) => setTimeout(resolve, 2000));
-    setUpdate(update + 1);
+    setUpdateBalance(updateBalance+1);setUpdate(update + 1);
   }
 
   const handleCancelBid = async (item) => {
@@ -480,7 +499,7 @@ export const NFTCollection = () => {
       console.log("waiting for isConfirming", isConfirming);
     }
     await new Promise((resolve) => setTimeout(resolve, 2000));
-    setUpdate(update + 1);
+    setUpdateBalance(updateBalance+1);setUpdate(update + 1);
   };
 
   // Add notification when hash is set
@@ -567,7 +586,7 @@ export const NFTCollection = () => {
             <h3 className="text-lg text-slate-900">
               [Balance]
             </h3>
-            <span className="font-medium">{balance} OVER<br/>{balanceWOVER} WOVER</span>
+            <span className="font-medium">{balance} OVER<br/>{balanceWOVER} WOVER<br/>{balanceNFT} NFT</span>
             <div className="flex items-center">
               <h3 className="text-lg text-slate-900">
                 
