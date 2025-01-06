@@ -15,6 +15,9 @@ export default {
       animation: {
         'fade-in': 'fade-in 0.3s ease-out',
       },
+      fontFamily: {
+        sans: ['Noto Sans KR', 'sans-serif'],
+      },
     },
   },
   plugins: [],
