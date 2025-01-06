@@ -22,7 +22,7 @@ export const Footer = () => {
               GitHub
             </a>
             <a
-              href="https://discord.gg/waEfKm9y"
+              href="https://discord.gg/afzfh5g7Xw"
               target="_blank"
               rel="noopener noreferrer"
               className="text-gray-600 hover:text-gray-900"
