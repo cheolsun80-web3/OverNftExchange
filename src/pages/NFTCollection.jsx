@@ -10,7 +10,7 @@ import {
 import { parseEther, formatEther } from "viem";
 import { env } from "../env";
 import { abi } from "../utils/abi";
-
+import { lang } from "../utils/lang";
 export const NFTCollection = () => {
   const { address } = useParams();
   const { address: wallet, isConnected } = useAccount();
@@ -30,17 +30,21 @@ export const NFTCollection = () => {
   const publicClient = usePublicClient();
   const { writeContractAsync, isPending } = useWriteContract();
   const [isWaiting, setIsWaiting] = useState(false);
-  //   const {
-  //     data: hash,
-  //     error,
-  //     isPending,
-  //     sendTransaction
-  //   } = useSendTransaction()
+
+  const [langCode, setLangCode] = useState("en");
   const [hash, setHash] = useState(null);
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
     useWaitForTransactionReceipt({
       hash,
     });
+  
+  // get lang from browser
+  useEffect(() => {
+    const lang = navigator.language.split("-")[0];
+    if (["en", "ko"].includes(lang)) {
+      setLangCode(lang);
+    }
+  }, []);
 
   // 페이지 로드 시 잘못된 NFT 주소면 홈으로 이동
   useEffect(() => {
@@ -49,49 +53,6 @@ export const NFTCollection = () => {
       navigate("/");
     }
   }, [address, navigate]);
-
-  // 임시 데이터 세팅 (asks, bids)
-  useEffect(() => {
-    const mockAsks = [
-      {
-        tokenId: 1234,
-        price: "1000000000000000000",
-        seller: "0x1234",
-        expiration: 1735635833,
-        imageUrl: "https://via.placeholder.com/400x400?text=NFT+Sample",
-      },
-      {
-        tokenId: 1111,
-        price: "1000000000000000000",
-        seller: "0x1234",
-        expiration: 1735635833,
-        imageUrl: "https://via.placeholder.com/400x400?text=NFT+Sample",
-      },
-      {
-        tokenId: 2222,
-        price: "1000000000000000000",
-        seller: "0x1234",
-        expiration: 1735635833,
-        imageUrl: "https://via.placeholder.com/400x400?text=NFT+Sample",
-      },
-      {
-        tokenId: 5678,
-        price: "2000000000000000000",
-        seller: "0x5678",
-        expiration: 1735635833,
-        imageUrl: "https://via.placeholder.com/400x400?text=NFT+Sample+2",
-      },
-    ];
-    const mockBids = [
-      {
-        bidder: "0x1234",
-        price: "1000000000000000000",
-      },
-    ];
-
-    // setAsks(mockAsks);
-    // setBids(mockBids);
-  }, [address]);
 
   // 지갑이 연결된 경우, 사용자가 보유 중인 NFT 목록 불러오기
   useEffect(() => {
@@ -145,30 +106,8 @@ export const NFTCollection = () => {
           let item = items[i];
           items[
             i
-          ].imageUrl = `https://nethers-nft.nethers.app/nft/${item.tokenId}.jpg`;
+          ].imageUrl = env.NFTs[0].imageUrl(item.tokenId);
         }
-
-        // // Multicall3 data
-        // const datas = [];
-        // for (const item of data) {
-        //     datas.push(
-        //         {
-        //             address: address,
-        //             abi: abi.ERC721,
-        //             functionName: 'tokenURI',
-        //             args: [item.tokenId],
-        //         }
-        //     );
-        // }
-        // console.log('asdf:', datas);
-        // const results = await publicClient.multicall({
-        //     contracts: datas
-        // });
-        // console.log('Multicall3:', results);
-        // for (const i in items) {
-        //     fetch(results[i])
-        //     items[i].imageUrl = results[i];
-        // }
         setAsks(items);
         console.log("Asks:", items);
       } catch (err) {
@@ -281,7 +220,7 @@ export const NFTCollection = () => {
     console.log("getApproved:", getApproved);
 
     if (getApproved != env.contracts.NFTExchange) {
-      alert("NFT Exchange가 NFT를 대신 판매할 수 있도록 승인해주세요.");
+      alert(lang[langCode].errors.approve);
       var txhash = await writeContractAsync({
         address: address,
         abi: abi.ERC721,
@@ -312,13 +251,13 @@ export const NFTCollection = () => {
     var txhash;
 
     if (sellType === "ASK") {
-      const price = prompt("판매 가격을 입력하세요 (1 = 1 over)", "1");
+      const price = prompt(lang[langCode].prompts.askPrice, "1");
       if (isNaN(price) || Number(price) < 1 || Number(price) > 999999999) {
         setIsWaiting(false);
-        return alert("올바른 숫자를 입력하세요.");
+        return alert(lang[langCode].errors.number);
       }
       const confirmed = confirm(
-        `Token ${tokenId}를 ${price} OVER에 판매하는 주문을 생성하시겠습니까?`
+        lang[langCode].prompts.askConfirm.replace("%s", tokenId).replace("%s", price)
       );
       if (!confirmed) {
         setIsWaiting(false);
@@ -336,7 +275,7 @@ export const NFTCollection = () => {
       console.log("addAsk:", txhash);
     } else if (sellType === "BID") {
       const confirmed = confirm(
-        `Token ${tokenId}를 ${topBid.price} OVER에 판매하는 주문을 생성하시겠습니까?`
+        lang[langCode].prompts.bidConfirm.replace("%s", tokenId).replace("%s", topBid.price)
       );
       if (!confirmed) {
         setIsWaiting(false);
@@ -363,11 +302,11 @@ export const NFTCollection = () => {
   };
   const handleBid = async (price) => {
     if (isNaN(price) || Number(price) < 1 || Number(price) > 999999999)
-      return alert("올바른 숫자를 입력하세요.");
+      return alert(lang[langCode].errors.number);
     if (price <= topBid.price)
-      return alert("Top Bid보다 높은 가격을 입력하세요.");
+      return alert(lang[langCode].prompts.topBid);
     setIsWaiting(true);
-    const confirmed = confirm(`${price} OVER로 구매 주문을 생성하시겠습니까?`);
+    const confirmed = confirm(lang[langCode].prompts.bidConfirmBuy.replace("%s", price));
     if (!confirmed) {
       setIsWaiting(false);
       return;
@@ -395,7 +334,7 @@ export const NFTCollection = () => {
 
   const handleBuy = async (item) => {
     const confirmed = confirm(
-      `Token ${item.tokenId}를 ${item.price} OVER에 구매하시겠습니까?`
+      lang[langCode].prompts.bidConfirm.replace("%s", item.tokenId).replace("%s", item.price)
     );
     if (!confirmed) return;
 
@@ -419,7 +358,7 @@ export const NFTCollection = () => {
 
   const handleCancel = async (item) => {
     const confirmed = confirm(
-      `Token ${item.tokenId}의 판매 주문을 취소하시겠습니까?`
+      lang[langCode].prompts.askCancel.replace("%s", item.tokenId)
     );
     if (!confirmed) return;
 
@@ -442,7 +381,7 @@ export const NFTCollection = () => {
 
   const handleCancelBid = async (item) => {
     const confirmed = confirm(
-      `${item.price} Over Bid 주문을 취소하시겠습니까?`
+      lang[langCode].prompts.bidCancel.replace("%s", item.price)
     );
     if (!confirmed) return;
 
@@ -540,7 +479,7 @@ export const NFTCollection = () => {
             Sell My Item
           </button>
           {!isConnected && (
-            <p className="text-sm text-red-500 mt-2">지갑 연결이 필요합니다.</p>
+            <p className="text-sm text-red-500 mt-2">{lang[langCode].errors.wallet}</p>
           )}
         </div>
       )}
@@ -555,7 +494,7 @@ export const NFTCollection = () => {
             Make Bid (BuyOrder)
           </button>
           {!isConnected && (
-            <p className="text-sm text-red-500 mt-2">지갑 연결이 필요합니다.</p>
+            <p className="text-sm text-red-500 mt-2">{lang[langCode].errors.wallet}</p>
           )}
           <button
             className="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded ml-4"
@@ -568,7 +507,7 @@ export const NFTCollection = () => {
             Sell My Item to Top Bidder
           </button>
           {!isConnected && (
-            <p className="text-sm text-red-500 mt-2">지갑 연결이 필요합니다.</p>
+            <p className="text-sm text-red-500 mt-2">{lang[langCode].errors.wallet}</p>
           )}
         </div>
       )}
