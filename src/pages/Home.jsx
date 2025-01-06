@@ -7,7 +7,6 @@ export const Home = () => {
   const [nfts, setNfts] = useState([]);
 
   useEffect(() => {
-    // 임시 데이터
     const mockNFTs = env.NFTs;
     setNfts(mockNFTs);
   }, []);
@@ -33,7 +32,7 @@ export const Home = () => {
                 {nft.name}
               </h2>
               <p className="mt-2 text-sm text-gray-500 font-mono">
-                {nft.address}
+                {nft.address.slice(0, 10)}...{nft.address.slice(-8)}
               </p>
             </div>
           </Link>
