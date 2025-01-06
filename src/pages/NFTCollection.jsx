@@ -37,6 +37,7 @@ export const NFTCollection = () => {
     useWaitForTransactionReceipt({
       hash,
     });
+  const [sortType, setSortType] = useState("priceAsc");
   
   // get lang from browser
   useEffect(() => {
@@ -92,10 +93,9 @@ export const NFTCollection = () => {
             tokenId: Number(item.idx),
             price: formatEther(item.price),
             seller: item.seller,
-            expiration: item.expiration,
+            expiration: Number(item.expiration),
           });
         }
-        // Multicall3 tokenURI(tokenId)
 
         if (items.length == 0) {
           setAsks([]);
@@ -104,17 +104,31 @@ export const NFTCollection = () => {
 
         for (let i = 0; i < items.length; i++) {
           let item = items[i];
-          items[
-            i
-          ].imageUrl = env.NFTs[0].imageUrl(item.tokenId);
+          items[i].imageUrl = env.NFTs[0].imageUrl(item.tokenId);
         }
-        setAsks(items);
-        console.log("Asks:", items);
+
+        const sortedItems = [...items].sort((a, b) => {
+          switch (sortType) {
+            case "priceAsc":
+              return Number(a.price) - Number(b.price);
+            case "priceDesc":
+              return Number(b.price) - Number(a.price);
+            case "timeAsc":
+              return Number(a.expiration) - Number(b.expiration);
+            case "timeDesc":
+              return Number(b.expiration) - Number(a.expiration);
+            default:
+              return Number(a.price) - Number(b.price);
+          }
+        });
+
+        setAsks(sortedItems);
+        console.log("Asks:", sortedItems);
       } catch (err) {
         console.error(err);
       }
     })();
-  }, [address, publicClient, update]);
+  }, [address, publicClient, update, sortType]);
   useEffect(() => {
     (async () => {
       try {
@@ -515,7 +529,19 @@ export const NFTCollection = () => {
       {/* Sell Orders 탭: 카드(액자) 레이아웃 */}
       {selectedTab === "sell" && (
         <div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Sell Orders</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-bold text-gray-800">Sell Orders</h2>
+            <select
+              className="border rounded-md px-3 py-1"
+              value={sortType}
+              onChange={(e) => setSortType(e.target.value)}
+            >
+              <option value="priceAsc">priceAsc</option>
+              <option value="priceDesc">priceDesc</option>
+              <option value="timeAsc">timeAsc</option>
+              <option value="timeDesc">timeDesc</option>
+            </select>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             {asks.map((ask) => (
               <div
