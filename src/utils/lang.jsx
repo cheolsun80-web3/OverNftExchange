@@ -13,6 +13,7 @@ export const lang = {
             "topBid": "Please enter a price higher than Top Bid.",
             "askCancel": "Are you sure you want to cancel the sale order for Token %s?",
             "bidCancel": "Are you sure you want to cancel the bid order for %s OVER?",
+            "withdrawWOVER": "Are you sure you want to withdraw WOVER?",
         }
     },
     "ko": {
@@ -29,6 +30,7 @@ export const lang = {
             "topBid": "Top Bid보다 높은 가격을 입력하세요.",
             "askCancel": "Token %s의 판매 주문을 취소하시겠습니까?",
             "bidCancel": "%s OVER Bid 주문을 취소하시겠습니까?",
+            "withdrawWOVER": "WOVER를 OVER로 출금하시겠습니까?",
         }
     }
 }

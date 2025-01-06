@@ -15,6 +15,7 @@ export const NFTCollection = () => {
   const { address } = useParams();
   const { address: wallet, isConnected } = useAccount();
   const [balance, setBalance] = useState(0);
+  const [balanceWOVER, setBalanceWOVER] = useState(0);
   const [asks, setAsks] = useState([]);
   const [bids, setBids] = useState([]);
   const [bidPrice, setBidPrice] = useState(0);
@@ -26,6 +27,7 @@ export const NFTCollection = () => {
   const [sellType, setSellType] = useState("ASK");
   const [showBidModal, setShowBidModal] = useState(false); // 모달 상태
   const [update, setUpdate] = useState(0);
+  const [updateBalance, setUpdateBalance] = useState(0);
   const navigate = useNavigate();
   const publicClient = usePublicClient();
   const { writeContractAsync, isPending } = useWriteContract();
@@ -38,7 +40,18 @@ export const NFTCollection = () => {
       hash,
     });
   const [sortType, setSortType] = useState("priceAsc");
-  
+
+  useEffect(() => {
+    if (isPending || isWaiting) {
+      console.log("isPending or isWaiting");
+      console.log("hash:", hash);
+    } else {
+      console.log("isConfirmed");
+      console.log("isConfirmed:", isConfirmed);
+      console.log("hash:", hash);
+    }
+  }, [isPending, isWaiting, isConfirmed]);
+
   // get lang from browser
   useEffect(() => {
     const lang = navigator.language.split("-")[0];
@@ -218,11 +231,39 @@ export const NFTCollection = () => {
         // float point 4
         balanceOver = parseFloat(balanceOver).toFixed(4);
         setBalance(balanceOver);
+
+        const balanceWOVER = await publicClient.readContract({
+          address: env.contracts.WETH,
+          abi: abi.WETH,
+          functionName: "balanceOf",
+          args: [wallet],
+        });
+        let balanceWOVEROver = formatEther(balanceWOVER);
+        balanceWOVEROver = parseFloat(balanceWOVEROver).toFixed(4);
+        console.log("balanceWOVEROver:", balanceWOVEROver);
+        setBalanceWOVER(balanceWOVEROver);
       } catch (err) {
         console.error(err);
       }
     })();
-  }, [address, publicClient, update]);
+  }, [address, publicClient, update, updateBalance]);
+
+  // setInterval update balance over
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setUpdateBalance(updateBalance + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [updateBalance]);
+
+  const tryWriteContractAsync = async (...args) => {
+    try {
+      return await writeContractAsync(...args);
+    } catch (err) {
+      alert(err.message);
+      return false;
+    }
+  }
 
   const checkApprovalInner = async (tokenId) => {
     const getApproved = await publicClient.readContract({
@@ -235,7 +276,7 @@ export const NFTCollection = () => {
 
     if (getApproved != env.contracts.NFTExchange) {
       alert(lang[langCode].errors.approve);
-      var txhash = await writeContractAsync({
+      var txhash = await tryWriteContractAsync({
         address: address,
         abi: abi.ERC721,
         functionName: "approve",
@@ -279,7 +320,7 @@ export const NFTCollection = () => {
       }
 
       // function addAsk(IERC721 nft, uint256 tokenId, uint256 price)
-      txhash = await writeContractAsync({
+      txhash = await tryWriteContractAsync({
         address: env.contracts.NFTExchange,
         abi: abi.NFTExchange,
         functionName: "addAsk",
@@ -296,7 +337,7 @@ export const NFTCollection = () => {
         return;
       }
       // function acceptBid(IERC721 nft, uint256 tokenId, uint256 minPrice)
-      txhash = await writeContractAsync({
+      txhash = await tryWriteContractAsync({
         address: env.contracts.NFTExchange,
         abi: abi.NFTExchange,
         functionName: "acceptBid",
@@ -327,7 +368,7 @@ export const NFTCollection = () => {
     }
     await new Promise((resolve) => setTimeout(resolve, 6000));
     // function addBid(IERC721 nft, uint256 price) public payable {
-    var txhash = await writeContractAsync({
+    var txhash = await tryWriteContractAsync({
       address: env.contracts.NFTExchange,
       abi: abi.NFTExchange,
       functionName: "addBid",
@@ -353,7 +394,7 @@ export const NFTCollection = () => {
     if (!confirmed) return;
 
     // function acceptAsk(IERC721 nft, uint256 tokenId, uint256 price) public payable {
-    var txhash = await writeContractAsync({
+    var txhash = await tryWriteContractAsync({
       address: env.contracts.NFTExchange,
       abi: abi.NFTExchange,
       functionName: "acceptAsk",
@@ -377,7 +418,7 @@ export const NFTCollection = () => {
     if (!confirmed) return;
 
     // function removeAsk(IERC721 nft, uint256 tokenId)
-    var txhash = await writeContractAsync({
+    var txhash = await tryWriteContractAsync({
       address: env.contracts.NFTExchange,
       abi: abi.NFTExchange,
       functionName: "removeAsk",
@@ -393,6 +434,26 @@ export const NFTCollection = () => {
     setUpdate(update + 1);
   };
 
+  const handleWithdrawWOVER = async () => {
+    const confirmed = confirm(lang[langCode].prompts.withdrawWOVER);
+    if (!confirmed) return;
+
+    var txhash = await tryWriteContractAsync({
+      address: env.contracts.WETH,
+      abi: abi.WETH,
+      functionName: "withdraw",
+      args: [parseEther(balanceWOVER)],
+    });
+    setHash(txhash);
+    console.log("withdrawWOVER:", txhash);
+    while (isPending || isConfirming) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      console.log("waiting for isConfirming", isConfirming);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    setUpdate(update + 1);
+  }
+
   const handleCancelBid = async (item) => {
     const confirmed = confirm(
       lang[langCode].prompts.bidCancel.replace("%s", item.price)
@@ -400,7 +461,7 @@ export const NFTCollection = () => {
     if (!confirmed) return;
 
     // function removeAsk(IERC721 nft, uint256 tokenId)
-    var txhash = await writeContractAsync({
+    var txhash = await tryWriteContractAsync({
       address: env.contracts.NFTExchange,
       abi: abi.NFTExchange,
       functionName: "removeBid",
@@ -476,6 +537,17 @@ export const NFTCollection = () => {
           <h3 className="text-xl font-semibold text-gray-800">
             Balance: {balance} OVER
           </h3>
+          <h3 className="text-xl font-semibold text-gray-800">
+            Balance (WOVER): {balanceWOVER} WOVER
+            {balanceWOVER > 0.1 && (
+              <button className="bg-blue-500 hover:bg-blue-600 text-white mx-3 py-2 px-4 rounded" 
+                onClick={() => handleWithdrawWOVER()}
+              >
+                WOVER to OVER (withdraw)
+              </button>
+            )}
+          </h3>
+          {/* if balanceWOVER > 0.1 withdraw WOVER button*/}
         </div>
       )}
 
