@@ -681,7 +681,7 @@ export const NFTCollection = () => {
                   alt={`Token ${ask.tokenId}`}
                   className="w-full h-64 object-cover"
                 />
-                <div className="p-6 space-y-3">
+                <div className="p-6 space-y-3 space-y-0">
                   <h3 className="text-lg font-medium text-slate-900">
                     Token ID:{" "}
                     <a
@@ -708,6 +708,7 @@ export const NFTCollection = () => {
                   <p className="text-slate-700">
                     Expiration: {new Date(Number(ask.expiration) * 1000).toLocaleDateString()}
                   </p>
+                  <p>&nbsp;</p>
                   {wallet === ask.seller ? (
                     <button
                       className="w-full px-4 py-2.5 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-all duration-200 shadow-sm"
