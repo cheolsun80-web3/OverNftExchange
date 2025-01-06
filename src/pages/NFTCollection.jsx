@@ -40,6 +40,7 @@ export const NFTCollection = () => {
       hash,
     });
   const [sortType, setSortType] = useState("priceAsc");
+  const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
     if (isPending || isWaiting) {
@@ -476,6 +477,24 @@ export const NFTCollection = () => {
     await new Promise((resolve) => setTimeout(resolve, 2000));
     setUpdate(update + 1);
   };
+
+  // Add notification when hash is set
+  useEffect(() => {
+    if (hash) {
+      const newNotification = {
+        id: Date.now(),
+        hash,
+        timestamp: new Date(),
+      };
+      
+      setNotifications(prev => [...prev, newNotification]);
+
+      // Remove notification after 30 seconds
+      setTimeout(() => {
+        setNotifications(prev => prev.filter(n => n.id !== newNotification.id));
+      }, 30000);
+    }
+  }, [hash]);
 
   return (
     <div className="space-y-8">
@@ -986,6 +1005,26 @@ export const NFTCollection = () => {
           </div>
         </div>
       )}
+
+      {/* Transaction Notifications */}
+      <div className="fixed bottom-4 right-4 z-50 space-y-2">
+        {notifications.map((notification) => (
+          <div
+            key={notification.id}
+            className="bg-white rounded-lg shadow-lg p-4 border border-gray-200 animate-fade-in"
+          >
+            <p className="text-sm text-gray-600">New Transaction:</p>
+            <a
+              href={`https://scan.over.network/tx/${notification.hash}`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-blue-500 hover:text-blue-600"
+            >
+              {notification.hash.slice(0, 8)}...{notification.hash.slice(-8)}
+            </a>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
