@@ -1,12 +1,9 @@
-import { RainbowKitProvider, getDefaultWallets } from '@rainbow-me/rainbowkit';
-import { WagmiConfig, createConfig, http } from 'wagmi';
-// import { mainnet, sepolia } from 'wagmi/chains';
-// import { createPublicClient, getContract } from 'viem';
+import { RainbowKitProvider } from '@rainbow-me/rainbowkit';
+import { WagmiProvider, http } from 'wagmi';
 import { Route, Routes, BrowserRouter } from 'react-router-dom';
 import '@rainbow-me/rainbowkit/styles.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { connectorsForWallets } from '@rainbow-me/rainbowkit';
-import {walletConnectWallet,} from '@rainbow-me/rainbowkit/wallets';
+import { getDefaultConfig } from '@rainbow-me/rainbowkit';
 
 import { Layout } from './components/Layout';
 import { Home } from './pages/Home';
@@ -32,54 +29,24 @@ const overChain = {
       blockCreated: 5882,
     },
   },
-  // id: 31337,
-  // name: 'Local Chain',
-  // network: 'localhost',
-  // nativeCurrency: {
-  //   decimals: 18,
-  //   name: 'Ethereum',
-  //   symbol: 'ETH',
-  // },
-  // rpcUrls: {
-  //   default: { http: ['http://127.0.0.1:8545'] },
-  //   public: { http: ['http://127.0.0.1:8545'] },
-  // },
 };
 
-const connectors = connectorsForWallets(
-  [
-    {
-      groupName: 'Recommended',
-      wallets: [walletConnectWallet],
-    }
-  ],
-  {
-    appName: 'ONE OverNftExchange',
-    projectId: 'c827f82cc2a16ca18e73a3c7d189e06c',
-  }
-);
-
-const { wallets } = getDefaultWallets({
+const config = getDefaultConfig({
   appName: 'OverNftExchange',
-  projectId: 'c827f82cc2a16ca18e73a3c7d189e06c', // WalletConnect Cloud에서 발급받은 프로젝트 ID
-  chains: [overChain]
-});
-
-const config = createConfig({
+  projectId: 'c827f82cc2a16ca18e73a3c7d189e06c',
   chains: [overChain],
   transports: {
     [overChain.id]: http()
   },
-  wallets,
-  connectors,
 });
+
 
 const queryClient = new QueryClient();
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <WagmiConfig config={config}>
+      <WagmiProvider config={config}>
         <RainbowKitProvider chains={[overChain]}>
           <BrowserRouter>
             <Layout>
@@ -90,7 +57,7 @@ function App() {
             </Layout>
           </BrowserRouter>
         </RainbowKitProvider>
-      </WagmiConfig>
+      </WagmiProvider>
     </QueryClientProvider>
   );
 }
