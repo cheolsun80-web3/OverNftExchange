@@ -521,7 +521,20 @@ export const NFTCollection = () => {
   }, [hash]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 bg-slate-50 min-h-screen">
+    <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8 bg-slate-50 min-h-screen">
+      {/* NFT 주소 정보 */}
+      <h3 className="text-2xl font-medium text-slate-900 mb-4">
+        {env.NFTs.find(nft => nft.address === address).name}<br/>
+        {" "}
+        <a
+          href={`https://scan.over.network/token/${address}`}
+          target="_blank"
+          rel="noreferrer"
+          className="text-slate-600 hover:text-slate-900 transition-colors"
+        >
+          {address.slice(0, 8)}...{address.slice(-8)}
+        </a>
+      </h3>
       {/* 상단 탭 버튼 */}
       <div className="flex gap-x-4 border-b border-slate-200 mb-8">
         <button
@@ -556,20 +569,7 @@ export const NFTCollection = () => {
         </button>
       </div>
 
-      {/* NFT 주소 정보 */}
       <div className="mb-8">
-        <h3 className="text-2xl font-medium text-slate-900 mb-4">
-          NFT Address:{" "}
-          <a
-            href={`https://scan.over.network/token/${address}`}
-            target="_blank"
-            rel="noreferrer"
-            className="text-slate-600 hover:text-slate-900 transition-colors"
-          >
-            {address.slice(0, 8)}...{address.slice(-8)}
-          </a>
-        </h3>
-
         {isConnected && (
           <div className="space-y-2 bg-white p-6 rounded-xl shadow-sm border border-slate-100">
             <h3 className="text-lg text-slate-900">
@@ -733,54 +733,56 @@ export const NFTCollection = () => {
 
       {/* Buy Orders Table */}
       {selectedTab === "buy" && (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-          <h2 className="text-2xl font-medium text-slate-900 p-6 border-b border-slate-100">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden w-full">
+          <h2 className="text-2xl font-medium text-slate-900 p-4 sm:p-6 border-b border-slate-100">
             Buy Orders
           </h2>
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Bidder
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Price (OVER)
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-slate-200">
-              {bids.map((bid, index) => (
-                <tr key={index} className="hover:bg-slate-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <a
-                      href={`https://scan.over.network/address/${bid.bidder}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-slate-600 hover:text-slate-900 transition-colors"
-                    >
-                      {bid.bidder.slice(0, 8)}...{bid.bidder.slice(-8)}
-                    </a>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-900">
-                    {bid.price} OVER
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {bid.bidder === wallet && (
-                      <button
-                        className="px-4 py-2 bg-slate-100 text-slate-900 rounded-lg hover:bg-slate-200 transition-all duration-200 border border-slate-200"
-                        onClick={() => handleCancelBid(bid)}
-                      >
-                        Cancel
-                      </button>
-                    )}
-                  </td>
+          <div className="w-full overflow-x-auto">
+            <table className="w-full divide-y divide-slate-200">
+              <thead className="bg-slate-50">
+                <tr>
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    Bidder
+                  </th>
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    Price (OVER)
+                  </th>
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="bg-white divide-y divide-slate-200">
+                {bids.map((bid, index) => (
+                  <tr key={index} className="hover:bg-slate-50">
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                      <a
+                        href={`https://scan.over.network/address/${bid.bidder}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-slate-600 hover:text-slate-900 transition-colors"
+                      >
+                        {bid.bidder.slice(0, 8)}...{bid.bidder.slice(-8)}
+                      </a>
+                    </td>
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-slate-900">
+                      {bid.price} OVER
+                    </td>
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                      {bid.bidder === wallet && (
+                        <button
+                          className="px-4 py-2 bg-slate-100 text-slate-900 rounded-lg hover:bg-slate-200 transition-all duration-200 border border-slate-200"
+                          onClick={() => handleCancelBid(bid)}
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
