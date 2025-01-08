@@ -33,7 +33,7 @@ const overChain = {
 
 const config = getDefaultConfig({
   appName: 'OverNftExchange',
-  projectId: 'c827f82cc2a16ca18e73a3c7d189e06c',
+  projectId: '43c084b035366019001c72732c344615',
   chains: [overChain],
   transports: {
     [overChain.id]: http()

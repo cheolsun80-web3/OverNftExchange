@@ -17,6 +17,7 @@ export const NFTCollection = () => {
   const [balance, setBalance] = useState(0);
   const [balanceWOVER, setBalanceWOVER] = useState(0);
   const [balanceNFT, setBalanceNFT] = useState(0);
+  const [nftTotalSupply, setNftTotalSupply] = useState(null);
   const [asks, setAsks] = useState([]);
   const [bids, setBids] = useState([]);
   const [bidPrice, setBidPrice] = useState(0);
@@ -42,6 +43,7 @@ export const NFTCollection = () => {
     });
   const [sortType, setSortType] = useState("priceAsc");
   const [notifications, setNotifications] = useState([]);
+  const [showTopInfo, setShowTopInfo] = useState(true); // useState import 확인
 
   useEffect(() => {
     if (isPending || isWaiting) {
@@ -144,6 +146,23 @@ export const NFTCollection = () => {
     })();
   }, [address, publicClient, update, sortType]);
 
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const totalSupply = await publicClient.readContract({
+          address: address,
+          abi: abi.ERC721,
+          functionName: "totalSupply",
+        });
+        setNftTotalSupply(Number(totalSupply));
+      } catch (err) {
+        console.error(err);
+        setNftTotalSupply(null);
+      }
+    })();
+  }, [address]);
+
   useEffect(() => {
     (async () => {
       if (update == 0) {return;}
@@ -227,10 +246,11 @@ export const NFTCollection = () => {
     (async () => {
       if (updateBalance == 0) {return;}
       try {
+        if (!wallet) return;
         const balance = await publicClient.getBalance({ address: wallet });
         let balanceOver = formatEther(balance);
-        // float point 4
-        balanceOver = parseFloat(balanceOver).toFixed(4);
+        // float point 2
+        balanceOver = parseFloat(balanceOver).toFixed(2);
         setBalance(balanceOver);
         
         const datas = [];
@@ -255,7 +275,7 @@ export const NFTCollection = () => {
         const balanceWOVER = results[0].result;
         const balanceNFT = Number(results[1].result);
         let balanceWOVEROver = formatEther(balanceWOVER);
-        balanceWOVEROver = parseFloat(balanceWOVEROver).toFixed(4);
+        balanceWOVEROver = parseFloat(balanceWOVEROver).toFixed(2);
 
         setBalanceWOVER(balanceWOVEROver);
         setBalanceNFT(balanceNFT);
@@ -521,520 +541,567 @@ export const NFTCollection = () => {
   }, [hash]);
 
   return (
-    <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8 bg-slate-50 min-h-screen">
-      {/* NFT 주소 정보 */}
-      <h3 className="text-2xl font-medium text-slate-900 mb-4">
-        {env.NFTs.find(nft => nft.address === address).name}<br/>
-        {" "}
-        <a
-          href={`https://scan.over.network/token/${address}`}
-          target="_blank"
-          rel="noreferrer"
-          className="text-slate-600 hover:text-slate-900 transition-colors"
-        >
-          {address.slice(0, 8)}...{address.slice(-8)}
-        </a>
-      </h3>
-      {/* 상단 탭 버튼 */}
-      <div className="flex gap-x-4 border-b border-slate-200 mb-8">
-        <button
-          className={`py-3 px-6 transition-colors duration-200 ${
-            selectedTab === "sell"
-              ? "border-b-2 border-sky-500 font-medium text-sky-900"
-              : "text-slate-500 hover:text-slate-700"
-          }`}
-          onClick={() => setSelectedTab("sell")}
-        >
-          Sell
-        </button>
-        <button
-          className={`py-3 px-6 transition-colors duration-200 ${
-            selectedTab === "buy"
-              ? "border-b-2 border-sky-500 font-medium text-sky-900"
-              : "text-slate-500 hover:text-slate-700"
-          }`}
-          onClick={() => setSelectedTab("buy")}
-        >
-          Buy
-        </button>
-        <button
-          className={`py-3 px-6 transition-colors duration-200 ${
-            selectedTab === "history"
-              ? "border-b-2 border-sky-500 font-medium text-sky-900"
-              : "text-slate-500 hover:text-slate-700"
-          }`}
-          onClick={() => setSelectedTab("history")}
-        >
-          History
-        </button>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-purple-50/30">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-lg sm:text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
+            {env.NFTs.find(nft => nft.address === address).name} Collection
+          </h1>
+          <button
+            onClick={() => setShowTopInfo(!showTopInfo)}
+            className="px-3 py-1.5 bg-white/80 backdrop-blur-sm border border-slate-200 rounded-lg text-slate-600 hover:text-slate-900 hover:border-slate-300 transition-all duration-200 text-sm flex items-center gap-1.5 shadow-sm hover:shadow group"
+          >
+            {showTopInfo ? (
+              <>
+                <span>{lang[langCode].etc.hide}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 group-hover:-translate-y-0.5 transition-transform" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
+                </svg>
+              </>
+            ) : (
+              <>
+                <span>{lang[langCode].etc.show}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 group-hover:translate-y-0.5 transition-transform" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </>
+            )}
+          </button>
+        </div>
 
-      <div className="mb-8">
-        {isConnected && (
-          <div className="space-y-2 bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-            <h3 className="text-lg text-slate-900">
-              Connected Wallet:{" "}
+        <div id="top-info" className={`mb-8 grid grid-cols-2 gap-8 sm:grid-cols-3 transition-all duration-300 ${showTopInfo ? 'block' : 'hidden'}`}>
+          {/* Left Side */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 border border-white shadow-sm">
+            <h1 className="text-lg sm:text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 mb-4">
+              NFT: {env.NFTs.find(nft => nft.address === address).name}
+            </h1>
+            <p className="text-slate-500 font-mono">
               <a
-                href={`https://scan.over.network/address/${wallet}`}
+                href={`https://scan.over.network/token/${address}`}
                 target="_blank"
                 rel="noreferrer"
-                className="text-slate-600 hover:text-slate-900 transition-colors"
+                className="hover:text-indigo-600 transition-colors"
               >
-                {wallet.slice(0, 8)}...{wallet.slice(-8)}
+                {address.slice(0, 10)}...
               </a>
-            </h3>
-            <h3 className="text-lg text-slate-900">
-              [Balance]
-            </h3>
-            <span className="font-medium">{balance} OVER<br/>{balanceWOVER} WOVER<br/>{balanceNFT} NFT</span>
-            <div className="flex items-center">
-              <h3 className="text-lg text-slate-900">
-                
-              </h3>
-              {balanceWOVER > 0.1 && (
-                <button 
-                  className="ml-4 px-4 py-2 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-colors"
-                  onClick={() => handleWithdrawWOVER()}
+            </p><br/>
+            <p className="text-slate-500 font-mono">
+              Total Supply
+              <br/>
+              {nftTotalSupply}
+            </p><br/>
+
+            <img src={env.NFTs.find(nft => nft.address === address).image} alt="NFT" className="w-full h-auto" />
+          </div>
+          {/* sm only view div */}
+          <div className="hidden sm:block">
+          </div>
+
+          {/* Right Side */}
+          {isConnected && (
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 border border-white shadow-sm">
+              <div className="space-y-6">
+                <div>
+                  <h1 className="text-lg sm:text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 mb-4">Wallet</h1>
+                  <p className="text-slate-500 font-mono">
+                    <a
+                      href={`https://scan.over.network/address/${wallet}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="hover:text-indigo-600 transition-colors"
+                    >
+                      {wallet.slice(0, 10)}...
+                    </a>
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-lg font-medium text-slate-900 mb-2">Balance</h3>
+                  <div className="flex flex-wrap gap-4 grid grid-cols-2">
+                    <span className="px-2 py-2 bg-slate-50 rounded-xl text-slate-700 font-medium text-center text-sm md:text-base">
+                      OVER<br/>{balance}
+                    </span>
+                    <span className="px-2 py-2 bg-slate-50 rounded-xl text-slate-700 font-medium text-center text-sm md:text-base">
+                      WOVER<br/>{balanceWOVER}
+                    </span>
+                    <span className="px-2 py-2 bg-slate-50 rounded-xl text-slate-700 font-medium text-center text-sm md:text-base">
+                      NFT<br/>{balanceNFT}
+                    </span>
+                  </div>
+                </div>
+                {balanceWOVER > 0.1 && (
+                  <div className="pt-2">
+                    <button 
+                      className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-sm w-full"
+                      onClick={() => handleWithdrawWOVER()}
+                    >
+                      WOVER to OVER
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-x-6 border-b border-slate-200">
+          {["sell", "buy", "history"].map((tab) => (
+            <button
+              key={tab}
+              className={`py-4 px-6 text-lg transition-all duration-200 ${
+                selectedTab === tab
+                  ? "border-b-2 border-indigo-500 text-indigo-600 font-medium"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+              onClick={() => setSelectedTab(tab)}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        {/* Sell Orders Grid */}
+        {selectedTab === "sell" && (
+          <div className="mt-8">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-medium text-slate-900">Sell Orders</h2>
+              <select
+                className="px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                value={sortType}
+                onChange={(e) => setSortType(e.target.value)}
+              >
+                <option value="priceAsc">Price: Low to High</option>
+                <option value="priceDesc">Price: High to Low</option>
+                <option value="timeAsc">Time: Old to New</option>
+                <option value="timeDesc">Time: New to Old</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {asks.map((ask) => (
+                <div
+                  key={ask.tokenId}
+                  className="bg-white/70 backdrop-blur-sm rounded-2xl overflow-hidden transform hover:-translate-y-1 transition-all duration-300 hover:shadow-[0_20px_50px_rgba(8,_112,_184,_0.1)] border border-white/80"
                 >
-                  WOVER to OVER (withdraw)
+                  <img
+                    src={ask.imageUrl}
+                    alt={`Token ${ask.tokenId}`}
+                    className="w-full h-64 object-cover transform hover:scale-105 transition-all duration-700"
+                  />
+                  <div className="p-6 space-y-4">
+                    <h3 className="text-lg font-medium text-slate-900">
+                      Token ID:{" "}
+                      <a
+                        href={`https://scan.over.network/token/${address}/instance/${ask.tokenId}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-indigo-600 hover:text-indigo-700 transition-colors"
+                      >
+                        {ask.tokenId}
+                      </a>
+                    </h3>
+                    <p className="text-slate-700 bg-slate-50 px-3 py-2 rounded-lg inline-block">
+                      Price: {ask.price} OVER
+                    </p>
+                    <p className="text-slate-600">
+                      Seller:{" "}
+                      <a
+                        href={`https://scan.over.network/address/${ask.seller}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-indigo-600 hover:text-indigo-700 transition-colors font-mono"
+                      >
+                        {ask.seller.slice(0, 8)}...{ask.seller.slice(-8)}
+                      </a>
+                    </p>
+                    <p className="text-slate-600">
+                      Expiration: {new Date(Number(ask.expiration) * 1000).toLocaleDateString()}
+                    </p>
+                    {wallet === ask.seller ? (
+                      <button
+                        className="w-full px-4 py-3 bg-gradient-to-r from-rose-600 to-pink-600 text-white rounded-xl hover:from-rose-700 hover:to-pink-700 transition-all duration-200 shadow-sm mt-4"
+                        onClick={() => handleCancel(ask)}
+                      >
+                        Remove Ask
+                      </button>
+                    ) : (
+                      <button
+                        className="w-full px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-sm mt-4"
+                        onClick={() => handleBuy(ask)}
+                      >
+                        Buy
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Buy Orders Table */}
+        {selectedTab === "buy" && (
+          <div className="bg-white/70 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/80">
+            <h2 className="text-2xl font-medium text-slate-900 p-6 border-b border-slate-100">
+              Buy Orders
+            </h2>
+            <div className="overflow-x-auto">
+              <table className="w-full divide-y divide-slate-200">
+                <thead className="bg-slate-50/50">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                      Bidder
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                      Price (OVER)
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white/50 divide-y divide-slate-200">
+                  {bids.map((bid, index) => (
+                    <tr key={index} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <a
+                          href={`https://scan.over.network/address/${bid.bidder}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-indigo-600 hover:text-indigo-700 transition-colors font-mono"
+                        >
+                          {bid.bidder.slice(0, 8)}...{bid.bidder.slice(-8)}
+                        </a>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-slate-900 font-medium">
+                        {bid.price} OVER
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {bid.bidder === wallet && (
+                          <button
+                            className="px-4 py-2 bg-gradient-to-r from-rose-600 to-pink-600 text-white rounded-lg hover:from-rose-700 hover:to-pink-700 transition-all duration-200"
+                            onClick={() => handleCancelBid(bid)}
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Trade History Table */}
+        {selectedTab === "history" && (
+          <div className="bg-white/70 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/80">
+            <h2 className="text-2xl font-medium text-slate-900 p-6 border-b border-slate-100">
+              Trade History
+            </h2>
+            <div className="overflow-x-auto">
+              <table className="w-full divide-y divide-slate-200">
+                <thead className="bg-slate-50/50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                      Block
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                      Token ID
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                      Seller
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                      Buyer
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                      Price (OVER)
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white/50 divide-y divide-slate-200">
+                  {history.map((trade, index) => (
+                    <tr key={index} className="hover:bg-slate-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <a
+                          href={`https://scan.over.network/block/${trade.bn}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-slate-600 hover:text-slate-900 transition-colors"
+                        >
+                          {trade.bn}
+                        </a>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <a
+                          href={`https://scan.over.network/token/${address}/instance/${trade.tokenId}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-slate-600 hover:text-slate-900 transition-colors"
+                        >
+                          {trade.tokenId}
+                        </a>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <a
+                          href={`https://scan.over.network/address/${trade.seller}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-slate-600 hover:text-slate-900 transition-colors"
+                        >
+                          {trade.seller.slice(0, 8)}...{trade.seller.slice(-8)}
+                        </a>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <a
+                          href={`https://scan.over.network/address/${trade.buyer}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-slate-600 hover:text-slate-900 transition-colors"
+                        >
+                          {trade.buyer.slice(0, 8)}...{trade.buyer.slice(-8)}
+                        </a>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-slate-900">
+                        {trade.price} OVER
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+        <div className="mt-8"></div>
+        {/* Action Buttons */}
+        {selectedTab === "sell" && (
+          <div className="mb-8">
+            {!isConnected && (
+              <p className="mt-2 text-sm text-red-600">{lang[langCode].errors.wallet}</p>
+            )}
+            {isConnected && (
+              <div className="flex flex-col sm:flex-row gap-4">
+                <button
+                  className="w-full sm:w-auto px-6 py-3 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-all duration-200 shadow-sm disabled:bg-slate-300 disabled:cursor-not-allowed whitespace-nowrap"
+                  onClick={() => {
+                    setSellType("ASK");
+                    setShowMyNftsModal(true);
+                  }}
+                  disabled={!isConnected}
+                >
+                  Sell My Item
                 </button>
-              )}
+                {balanceWOVER > 0.1 && (
+                  <button 
+                    className="w-full sm:w-auto px-6 py-3 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-all duration-200 shadow-sm disabled:bg-slate-300 disabled:cursor-not-allowed whitespace-nowrap"
+                    onClick={() => handleWithdrawWOVER()}
+                  >
+                    WOVER to OVER
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {selectedTab === "buy" && (
+          <div className="mb-8">
+            {!isConnected && (
+              <p className="mt-2 text-sm text-red-600">{lang[langCode].errors.wallet}</p>
+            )}
+            {isConnected && (
+              <div className="flex flex-col sm:flex-row gap-4">
+                <button
+                  className="w-full sm:w-auto px-6 py-3 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-all duration-200 shadow-sm disabled:bg-slate-300 disabled:cursor-not-allowed whitespace-nowrap"
+                  onClick={() => setShowBidModal(true)}
+                  disabled={!isConnected}
+                >
+                  Make Bid (BuyOrder)
+                </button>
+                <button
+                  className="w-full sm:w-auto px-6 py-3 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-all duration-200 shadow-sm disabled:bg-slate-300 disabled:cursor-not-allowed whitespace-nowrap"
+                  onClick={() => {
+                    setSellType("BID");
+                    setShowMyNftsModal(true);
+                  }}
+                  disabled={!isConnected}
+                >
+                  Sell My Item to Top Bidder
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Modals */}
+        {showMyNftsModal && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+              <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+                <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+              </div>
+
+              <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+                <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                  <div className="sm:flex sm:items-start">
+                    <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
+                      <h3 className="text-lg leading-6 font-medium text-slate-900 mb-4">
+                        Select NFT to {sellType === "ASK" ? "Sell" : "Accept Bid"}
+                      </h3>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                        {myNfts.map((nft) => (
+                          <div
+                            key={nft.tokenId}
+                            className="group cursor-pointer"
+                            onClick={() => handleSelectNft(nft.tokenId)}
+                          >
+                            <div className="relative aspect-square overflow-hidden rounded-lg border border-slate-200 group-hover:border-slate-300">
+                              <img
+                                src={nft.imageUrl}
+                                alt={`Token ${nft.tokenId}`}
+                                className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-200"
+                              />
+                              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity" />
+                            </div>
+                            <p className="mt-2 text-sm text-center text-slate-600">
+                              Token #{nft.tokenId}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                  <button
+                    type="button"
+                    className="mt-3 w-full inline-flex justify-center rounded-lg border border-slate-200 shadow-sm px-4 py-2 bg-white text-base font-medium text-slate-900 hover:bg-slate-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition-all duration-200"
+                    onClick={() => setShowMyNftsModal(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showBidModal && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+              <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+                <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+              </div>
+
+              <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                  <div className="sm:flex sm:items-start">
+                    <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
+                      <h3 className="text-lg leading-6 font-medium text-slate-900 mb-4">
+                        Make a Bid
+                      </h3>
+                      <div className="mt-2">
+                        <input
+                          type="number"
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent"
+                          placeholder="Enter bid amount in OVER"
+                          value={bidPrice}
+                          onChange={(e) => setBidPrice(e.target.value)}
+                        />
+                        {topBid.price > 0 && (
+                          <p className="mt-2 text-sm text-slate-500">
+                            Current top bid: {topBid.price} OVER
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                  <button
+                    type="button"
+                    className="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-slate-900 text-base font-medium text-white hover:bg-slate-800 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm transition-all duration-200"
+                    onClick={() => handleBid(bidPrice)}
+                  >
+                    Place Bid
+                  </button>
+                  <button
+                    type="button"
+                    className="mt-3 w-full inline-flex justify-center rounded-lg border border-slate-200 shadow-sm px-4 py-2 bg-white text-base font-medium text-slate-900 hover:bg-slate-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition-all duration-200"
+                    onClick={() => setShowBidModal(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Notifications */}
+        <div className="fixed bottom-4 right-4 z-50 space-y-2">
+          {notifications.map((notification) => (
+            <div
+              key={notification.id}
+              className="bg-white rounded-lg shadow-lg p-4 border border-slate-200 animate-fade-in"
+            >
+              <p className="text-sm text-slate-600 mb-1">New Transaction:</p>
+              <a
+                href={`https://scan.over.network/tx/${notification.hash}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-slate-900 hover:text-slate-700 transition-colors"
+              >
+                {notification.hash.slice(0, 8)}...{notification.hash.slice(-8)}
+              </a>
+            </div>
+          ))}
+        </div>
+
+        {/* Loading Modal */}
+        {(isPending || isConfirming || isWaiting) && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen px-4 text-center">
+              <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+                <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+              </div>
+
+              <div className="inline-block bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-sm sm:w-full sm:p-6">
+                <div className="flex flex-col items-center">
+                  <div className="mb-4">
+                    <svg className="animate-spin h-8 w-8 text-slate-900" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  </div>
+                  <div className="mt-3 text-center sm:mt-5">
+                    <h3 className="text-lg leading-6 font-medium text-slate-900">
+                      {isPending ? "Waiting for confirmation..." : 
+                       isConfirming ? "Transaction is being confirmed..." :
+                       "Processing your request..."}
+                    </h3>
+                    {hash && (
+                      <div className="mt-2">
+                        <p className="text-sm text-slate-500">
+                          Transaction Hash:
+                        </p>
+                        <a
+                          href={`https://scan.over.network/tx/${hash}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-sm text-slate-900 hover:text-slate-700 transition-colors break-all"
+                        >
+                          {hash}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
       </div>
-
-      {/* Action Buttons */}
-      {selectedTab === "sell" && (
-        <div className="mb-8">
-          {!isConnected && (
-            <p className="mt-2 text-sm text-red-600">{lang[langCode].errors.wallet}</p>
-          )}
-          {isConnected && (
-            <button
-              className="px-6 py-3 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-all duration-200 shadow-sm disabled:bg-slate-300 disabled:cursor-not-allowed"
-              onClick={() => {
-                setSellType("ASK");
-                setShowMyNftsModal(true);
-              }}
-              disabled={!isConnected}
-            >
-              Sell My Item
-            </button>
-          )}
-        </div>
-      )}
-
-      {selectedTab === "buy" && (
-        <div className="mb-8">
-          {!isConnected && (
-            <p className="mt-2 text-sm text-red-600">{lang[langCode].errors.wallet}</p>
-          )}
-          {isConnected && (
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button
-                className="w-full sm:w-auto px-6 py-3 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-all duration-200 shadow-sm disabled:bg-slate-300 disabled:cursor-not-allowed whitespace-nowrap"
-                onClick={() => setShowBidModal(true)}
-                disabled={!isConnected}
-              >
-                Make Bid (BuyOrder)
-              </button>
-              <button
-                className="w-full sm:w-auto px-6 py-3 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-all duration-200 shadow-sm disabled:bg-slate-300 disabled:cursor-not-allowed whitespace-nowrap"
-                onClick={() => {
-                  setSellType("BID");
-                  setShowMyNftsModal(true);
-                }}
-                disabled={!isConnected}
-              >
-                Sell My Item to Top Bidder
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Sell Orders Grid */}
-      {selectedTab === "sell" && (
-        <div>
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-medium text-slate-900">Sell Orders</h2>
-            <select
-              className="px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900"
-              value={sortType}
-              onChange={(e) => setSortType(e.target.value)}
-            >
-              <option value="priceAsc">Price: Low to High</option>
-              <option value="priceDesc">Price: High to Low</option>
-              <option value="timeAsc">Time: Old to New</option>
-              <option value="timeDesc">Time: New to Old</option>
-            </select>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {asks.map((ask) => (
-              <div
-                key={ask.tokenId}
-                className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition-shadow duration-200"
-              >
-                <img
-                  src={ask.imageUrl}
-                  alt={`Token ${ask.tokenId}`}
-                  className="w-full h-64 object-cover"
-                />
-                <div className="p-6 space-y-3 space-y-0">
-                  <h3 className="text-lg font-medium text-slate-900">
-                    Token ID:{" "}
-                    <a
-                      href={`https://scan.over.network/token/${address}/instance/${ask.tokenId}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-slate-600 hover:text-slate-900 transition-colors"
-                    >
-                      {ask.tokenId}
-                    </a>
-                  </h3>
-                  <p className="text-slate-700">Price: {ask.price} OVER</p>
-                  <p className="text-slate-700">
-                    Seller:{" "}
-                    <a
-                      href={`https://scan.over.network/address/${ask.seller}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-slate-600 hover:text-slate-900 transition-colors"
-                    >
-                      {ask.seller.slice(0, 8)}...{ask.seller.slice(-8)}
-                    </a>
-                  </p>
-                  <p className="text-slate-700">
-                    Expiration: {new Date(Number(ask.expiration) * 1000).toLocaleDateString()}
-                  </p>
-                  <p>&nbsp;</p>
-                  {wallet === ask.seller ? (
-                    <button
-                      className="w-full px-4 py-2.5 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-all duration-200 shadow-sm"
-                      onClick={() => handleCancel(ask)}
-                    >
-                      Remove Ask
-                    </button>
-                  ) : (
-                    <button
-                      className="w-full px-4 py-2.5 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-all duration-200 shadow-sm"
-                      onClick={() => handleBuy(ask)}
-                    >
-                      Buy
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Buy Orders Table */}
-      {selectedTab === "buy" && (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden w-full">
-          <h2 className="text-2xl font-medium text-slate-900 p-4 sm:p-6 border-b border-slate-100">
-            Buy Orders
-          </h2>
-          <div className="w-full overflow-x-auto">
-            <table className="w-full divide-y divide-slate-200">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    Bidder
-                  </th>
-                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    Price (OVER)
-                  </th>
-                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-slate-200">
-                {bids.map((bid, index) => (
-                  <tr key={index} className="hover:bg-slate-50">
-                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
-                      <a
-                        href={`https://scan.over.network/address/${bid.bidder}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-slate-600 hover:text-slate-900 transition-colors"
-                      >
-                        {bid.bidder.slice(0, 8)}...{bid.bidder.slice(-8)}
-                      </a>
-                    </td>
-                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-slate-900">
-                      {bid.price} OVER
-                    </td>
-                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
-                      {bid.bidder === wallet && (
-                        <button
-                          className="px-4 py-2 bg-slate-100 text-slate-900 rounded-lg hover:bg-slate-200 transition-all duration-200 border border-slate-200"
-                          onClick={() => handleCancelBid(bid)}
-                        >
-                          Cancel
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Trade History Table */}
-      {selectedTab === "history" && (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-          <h2 className="text-2xl font-medium text-slate-900 p-6 border-b border-slate-100">
-            Trade History
-          </h2>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    Block
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    Token ID
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    Seller
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    Buyer
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    Price (OVER)
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-slate-200">
-                {history.map((trade, index) => (
-                  <tr key={index} className="hover:bg-slate-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <a
-                        href={`https://scan.over.network/block/${trade.bn}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-slate-600 hover:text-slate-900 transition-colors"
-                      >
-                        {trade.bn}
-                      </a>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <a
-                        href={`https://scan.over.network/token/${address}/instance/${trade.tokenId}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-slate-600 hover:text-slate-900 transition-colors"
-                      >
-                        {trade.tokenId}
-                      </a>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <a
-                        href={`https://scan.over.network/address/${trade.seller}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-slate-600 hover:text-slate-900 transition-colors"
-                      >
-                        {trade.seller.slice(0, 8)}...{trade.seller.slice(-8)}
-                      </a>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <a
-                        href={`https://scan.over.network/address/${trade.buyer}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-slate-600 hover:text-slate-900 transition-colors"
-                      >
-                        {trade.buyer.slice(0, 8)}...{trade.buyer.slice(-8)}
-                      </a>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-slate-900">
-                      {trade.price} OVER
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Modals */}
-      {showMyNftsModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
-            </div>
-
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
-              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <div className="sm:flex sm:items-start">
-                  <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
-                    <h3 className="text-lg leading-6 font-medium text-slate-900 mb-4">
-                      Select NFT to {sellType === "ASK" ? "Sell" : "Accept Bid"}
-                    </h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                      {myNfts.map((nft) => (
-                        <div
-                          key={nft.tokenId}
-                          className="group cursor-pointer"
-                          onClick={() => handleSelectNft(nft.tokenId)}
-                        >
-                          <div className="relative aspect-square overflow-hidden rounded-lg border border-slate-200 group-hover:border-slate-300">
-                            <img
-                              src={nft.imageUrl}
-                              alt={`Token ${nft.tokenId}`}
-                              className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-200"
-                            />
-                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity" />
-                          </div>
-                          <p className="mt-2 text-sm text-center text-slate-600">
-                            Token #{nft.tokenId}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                <button
-                  type="button"
-                  className="mt-3 w-full inline-flex justify-center rounded-lg border border-slate-200 shadow-sm px-4 py-2 bg-white text-base font-medium text-slate-900 hover:bg-slate-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition-all duration-200"
-                  onClick={() => setShowMyNftsModal(false)}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showBidModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
-            </div>
-
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <div className="sm:flex sm:items-start">
-                  <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
-                    <h3 className="text-lg leading-6 font-medium text-slate-900 mb-4">
-                      Make a Bid
-                    </h3>
-                    <div className="mt-2">
-                      <input
-                        type="number"
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent"
-                        placeholder="Enter bid amount in OVER"
-                        value={bidPrice}
-                        onChange={(e) => setBidPrice(e.target.value)}
-                      />
-                      {topBid.price > 0 && (
-                        <p className="mt-2 text-sm text-slate-500">
-                          Current top bid: {topBid.price} OVER
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                <button
-                  type="button"
-                  className="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-slate-900 text-base font-medium text-white hover:bg-slate-800 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm transition-all duration-200"
-                  onClick={() => handleBid(bidPrice)}
-                >
-                  Place Bid
-                </button>
-                <button
-                  type="button"
-                  className="mt-3 w-full inline-flex justify-center rounded-lg border border-slate-200 shadow-sm px-4 py-2 bg-white text-base font-medium text-slate-900 hover:bg-slate-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition-all duration-200"
-                  onClick={() => setShowBidModal(false)}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Notifications */}
-      <div className="fixed bottom-4 right-4 z-50 space-y-2">
-        {notifications.map((notification) => (
-          <div
-            key={notification.id}
-            className="bg-white rounded-lg shadow-lg p-4 border border-slate-200 animate-fade-in"
-          >
-            <p className="text-sm text-slate-600 mb-1">New Transaction:</p>
-            <a
-              href={`https://scan.over.network/tx/${notification.hash}`}
-              target="_blank"
-              rel="noreferrer"
-              className="text-slate-900 hover:text-slate-700 transition-colors"
-            >
-              {notification.hash.slice(0, 8)}...{notification.hash.slice(-8)}
-            </a>
-          </div>
-        ))}
-      </div>
-
-      {/* Loading Modal */}
-      {(isPending || isConfirming || isWaiting) && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex items-center justify-center min-h-screen px-4 text-center">
-            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
-            </div>
-
-            <div className="inline-block bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-sm sm:w-full sm:p-6">
-              <div className="flex flex-col items-center">
-                <div className="mb-4">
-                  <svg className="animate-spin h-8 w-8 text-slate-900" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                </div>
-                <div className="mt-3 text-center sm:mt-5">
-                  <h3 className="text-lg leading-6 font-medium text-slate-900">
-                    {isPending ? "Waiting for confirmation..." : 
-                     isConfirming ? "Transaction is being confirmed..." :
-                     "Processing your request..."}
-                  </h3>
-                  {hash && (
-                    <div className="mt-2">
-                      <p className="text-sm text-slate-500">
-                        Transaction Hash:
-                      </p>
-                      <a
-                        href={`https://scan.over.network/tx/${hash}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-sm text-slate-900 hover:text-slate-700 transition-colors break-all"
-                      >
-                        {hash}
-                      </a>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

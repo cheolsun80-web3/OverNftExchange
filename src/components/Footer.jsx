@@ -1,23 +1,23 @@
 export const Footer = () => {
   return (
-    <footer className="bg-white shadow-md mt-auto">
-      <div className="max-w-7xl mx-auto px-4 py-4">
+    <footer className="bg-white/70 backdrop-blur-sm border-t border-white/80">
+      <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="text-center">
-          <p className="text-gray-600 mb-2">
+          <p className="text-slate-600 mb-4">
             OverNftExchange by{" "}
             <a
               href="mailto:cheolsun80@gmail.com"
-              className="text-sky-600 hover:text-sky-700"
+              className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 transition-all duration-300"
             >
               cheolsun80
             </a>
           </p>
-          <div className="flex justify-center gap-4">
+          <div className="flex justify-center gap-6">
             <a
               href="https://github.com/cheolsun80-web3"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-gray-600 hover:text-gray-900"
+              className="text-slate-500 hover:text-indigo-600 transition-colors duration-200"
             >
               GitHub
             </a>
@@ -25,7 +25,7 @@ export const Footer = () => {
               href="https://discord.gg/afzfh5g7Xw"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-gray-600 hover:text-gray-900"
+              className="text-slate-500 hover:text-indigo-600 transition-colors duration-200"
             >
               Discord
             </a>
@@ -33,7 +33,7 @@ export const Footer = () => {
               href="https://scan.over.network/address/0x45b737bB344766209170a024a90bFE94E214c4d9?tab=contract"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-gray-600 hover:text-gray-900"
+              className="text-slate-500 hover:text-indigo-600 transition-colors duration-200"
             >
               ONE-Contract
             </a>

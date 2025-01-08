@@ -14,6 +14,10 @@ export const lang = {
             "askCancel": "Are you sure you want to cancel the sale order for Token %s?",
             "bidCancel": "Are you sure you want to cancel the bid order for %s OVER?",
             "withdrawWOVER": "Are you sure you want to withdraw WOVER?",
+        },
+        etc: {
+            "show": "Show Info",
+            "hide": "Hide Info",
         }
     },
     "ko": {
@@ -31,6 +35,10 @@ export const lang = {
             "askCancel": "Token %s의 판매 주문을 취소하시겠습니까?",
             "bidCancel": "%s OVER Bid 주문을 취소하시겠습니까?",
             "withdrawWOVER": "WOVER를 OVER로 출금하시겠습니까?",
+        },
+        etc: {
+            "show": "정보 펼치기",
+            "hide": "정보 접기",
         }
     }
 }
