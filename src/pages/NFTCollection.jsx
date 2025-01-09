@@ -598,7 +598,7 @@ export const NFTCollection = () => {
           </div>
 
           {/* Right Side */}
-          {isConnected && (
+          {isConnected ? (
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 border border-white shadow-sm">
               <div className="space-y-6">
                 <div>
@@ -638,6 +638,17 @@ export const NFTCollection = () => {
                     </button>
                   </div>
                 )}
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 border border-white shadow-sm">
+              <div className="flex flex-col items-center justify-center h-full space-y-4">
+                <h1 className="text-lg sm:text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
+                  Wallet
+                </h1>
+                <p className="text-slate-600 text-center">
+                  {lang[langCode].errors.wallet}
+                </p>
               </div>
             </div>
           )}
@@ -722,12 +733,19 @@ export const NFTCollection = () => {
                       >
                         Remove Ask
                       </button>
-                    ) : (
+                    ) : isConnected ? (
                       <button
                         className="w-full px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-sm mt-4"
                         onClick={() => handleBuy(ask)}
                       >
                         Buy
+                      </button>
+                    ) : (
+                      <button
+                        className="w-full px-4 py-3 bg-slate-100 text-slate-400 rounded-xl cursor-not-allowed mt-4"
+                        disabled
+                      >
+                        {lang[langCode].errors.wallet}
                       </button>
                     )}
                   </div>
