@@ -682,11 +682,11 @@ export const NFTCollection = () => {
           )}
         </div>
 
-        <div className="flex gap-x-6 border-b border-slate-200">
+        <div className="flex gap-x-6 border-b border-slate-200 bg-white [color-scheme:light]">
           {["sell", "buy", "history"].map((tab) => (
             <button
               key={tab}
-              className={`py-4 px-6 text-lg transition-all duration-200 ${
+              className={`py-4 px-6 text-lg transition-all duration-200 bg-white [color-scheme:light] ${
                 selectedTab === tab
                   ? "border-b-2 border-indigo-500 text-indigo-600 font-medium"
                   : "text-slate-600 hover:text-slate-900"
