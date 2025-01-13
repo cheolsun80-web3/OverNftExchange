@@ -8,7 +8,7 @@ import {
   useWaitForTransactionReceipt,
 } from "wagmi";
 import { parseEther, formatEther } from "viem";
-import { env } from "../env";
+import { env, log } from "../env";
 import { abi } from "../utils/abi";
 import { lang } from "../utils/lang";
 export const NFTCollection = () => {
@@ -46,17 +46,6 @@ export const NFTCollection = () => {
   const [historySort, setHistorySort] = useState("blockDesc"); // 기본값: 최신 블록순
   const [notifications, setNotifications] = useState([]);
   const [showTopInfo, setShowTopInfo] = useState(true); // useState import 확인
-
-  useEffect(() => {
-    if (isPending || isWaiting) {
-      console.log("isPending or isWaiting");
-      console.log("hash:", hash);
-    } else {
-      console.log("isConfirmed");
-      console.log("isConfirmed:", isConfirmed);
-      console.log("hash:", hash);
-    }
-  }, [isPending, isWaiting, isConfirmed]);
 
   // get lang from browser
   useEffect(() => {
@@ -104,7 +93,7 @@ export const NFTCollection = () => {
           functionName: "getActiveAsks",
           args: [address],
         });
-        console.log("Active Asks:", data);
+        log("Active Asks:", data);
         const items = [];
         for (const item of data || []) {
           items.push({
@@ -141,7 +130,7 @@ export const NFTCollection = () => {
         });
 
         setAsks(sortedItems);
-        console.log("Asks:", sortedItems);
+        log("Asks:", sortedItems);
       } catch (err) {
         console.error(err);
       }
@@ -206,7 +195,7 @@ export const NFTCollection = () => {
         const results = await publicClient.multicall({
           contracts: datas
         });
-        console.log('Multicall3:', results);
+        log('Multicall3:', results);
 
         {
           const topBid = results[0].result;
@@ -283,7 +272,7 @@ export const NFTCollection = () => {
           args: [wallet],
         });
         const results = await publicClient.multicall({ contracts: datas });
-        console.log('updateBalance:', results);
+        log('updateBalance:', results);
 
         const balanceWOVER = results[0].result;
         const balanceNFT = Number(results[1].result);
@@ -330,7 +319,7 @@ export const NFTCollection = () => {
       functionName: "getApproved",
       args: [tokenId],
     });
-    console.log("getApproved:", getApproved);
+    log("getApproved:", getApproved);
 
     if (getApproved != env.contracts.NFTExchange) {
       alert(lang[langCode].errors.approve);
@@ -340,7 +329,7 @@ export const NFTCollection = () => {
         functionName: "approve",
         args: [env.contracts.NFTExchange, tokenId],
       });
-      console.log("approve:", txhash);
+      log("approve:", txhash);
       setHash(txhash);
       return false;
     }
@@ -351,7 +340,7 @@ export const NFTCollection = () => {
     // wait for isConfirming
     while (isPending || isConfirming) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      console.log("waiting for isConfirming", isConfirming);
+      log("waiting for isConfirming", isConfirming);
     }
     await new Promise((resolve) => setTimeout(resolve, 6000));
     // check again
@@ -385,7 +374,7 @@ export const NFTCollection = () => {
         args: [address, tokenId, parseEther(price)],
       });
       setHash(txhash);
-      console.log("addAsk:", txhash);
+      log("addAsk:", txhash);
     } else if (sellType === "BID") {
       const confirmed = confirm(
         lang[langCode].prompts.bidConfirm.replace("%s", tokenId).replace("%s", topBid.price)
@@ -402,11 +391,11 @@ export const NFTCollection = () => {
         args: [address, tokenId, parseEther(topBid.price)],
       });
       setHash(txhash);
-      console.log("acceptBid:", txhash);
+      log("acceptBid:", txhash);
     }
     while (isPending || isConfirming) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      console.log("waiting for isConfirming", isConfirming);
+      log("waiting for isConfirming", isConfirming);
     }
     await new Promise((resolve) => setTimeout(resolve, 6000));
     setIsWaiting(false);
@@ -434,10 +423,10 @@ export const NFTCollection = () => {
       value: parseEther(price),
     });
     setHash(txhash);
-    console.log("addBid:", txhash);
+    log("addBid:", txhash);
     while (isPending || isConfirming) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      console.log("waiting for isConfirming", isConfirming);
+      log("waiting for isConfirming", isConfirming);
     }
     await new Promise((resolve) => setTimeout(resolve, 6000));
     setIsWaiting(false);
@@ -460,10 +449,10 @@ export const NFTCollection = () => {
       value: parseEther(item.price),
     });
     setHash(txhash);
-    console.log("buy:", txhash);
+    log("buy:", txhash);
     while (isPending || isConfirming) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      console.log("waiting for isConfirming", isConfirming);
+      log("waiting for isConfirming", isConfirming);
     }
     await new Promise((resolve) => setTimeout(resolve, 2000));
     setUpdateBalance(updateBalance+1);setUpdate(update + 1);
@@ -483,10 +472,10 @@ export const NFTCollection = () => {
       args: [address, item.tokenId],
     });
     setHash(txhash);
-    console.log("cancel:", txhash);
+    log("cancel:", txhash);
     while (isPending || isConfirming) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      console.log("waiting for isConfirming", isConfirming);
+      log("waiting for isConfirming", isConfirming);
     }
     await new Promise((resolve) => setTimeout(resolve, 2000));
     setUpdateBalance(updateBalance+1);setUpdate(update + 1);
@@ -503,10 +492,10 @@ export const NFTCollection = () => {
       args: [parseEther(balanceWOVER)],
     });
     setHash(txhash);
-    console.log("withdrawWOVER:", txhash);
+    log("withdrawWOVER:", txhash);
     while (isPending || isConfirming) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      console.log("waiting for isConfirming", isConfirming);
+      log("waiting for isConfirming", isConfirming);
     }
     await new Promise((resolve) => setTimeout(resolve, 2000));
     setUpdateBalance(updateBalance+1);setUpdate(update + 1);
@@ -526,10 +515,10 @@ export const NFTCollection = () => {
       args: [address, item.nonce],
     });
     setHash(txhash);
-    console.log("cancel:", txhash);
+    log("cancel:", txhash);
     while (isPending || isConfirming) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      console.log("waiting for isConfirming", isConfirming);
+      log("waiting for isConfirming", isConfirming);
     }
     await new Promise((resolve) => setTimeout(resolve, 2000));
     setUpdateBalance(updateBalance+1);setUpdate(update + 1);
@@ -682,11 +671,11 @@ export const NFTCollection = () => {
           )}
         </div>
 
-        <div className="flex gap-x-6 border-b border-slate-200 bg-white [color-scheme:light]">
+        <div className="flex gap-x-6 border-b border-slate-200">
           {["sell", "buy", "history"].map((tab) => (
             <button
               key={tab}
-              className={`py-4 px-6 text-lg transition-all duration-200 bg-white [color-scheme:light] ${
+              className={`py-4 px-6 text-lg transition-all duration-200 ${
                 selectedTab === tab
                   ? "border-b-2 border-indigo-500 text-indigo-600 font-medium"
                   : "text-slate-600 hover:text-slate-900"

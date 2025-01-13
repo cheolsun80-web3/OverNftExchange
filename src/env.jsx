@@ -15,3 +15,9 @@ export const env = {
         },
     ],
 }
+
+export const log = (...args) => {
+  if (new URL(window.location.href).protocol === "http:") {
+    console.log('debug', ...args);
+  }
+}
