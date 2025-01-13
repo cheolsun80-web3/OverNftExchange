@@ -14,6 +14,7 @@ import { lang } from "../utils/lang";
 export const NFTCollection = () => {
   const { address } = useParams();
   const { address: wallet, isConnected } = useAccount();
+  const [walletOld, setWalletOld] = useState(wallet);
   const [balance, setBalance] = useState(0);
   const [balanceWOVER, setBalanceWOVER] = useState(0);
   const [balanceNFT, setBalanceNFT] = useState(0);
@@ -46,6 +47,14 @@ export const NFTCollection = () => {
   const [historySort, setHistorySort] = useState("blockDesc"); // 기본값: 최신 블록순
   const [notifications, setNotifications] = useState([]);
   const [showTopInfo, setShowTopInfo] = useState(true); // useState import 확인
+
+  useEffect(() => {
+    if (walletOld != wallet) {
+      setUpdate(update + 1);
+      setUpdateBalance(updateBalance + 1);
+      setWalletOld(wallet);
+    }
+  }, [wallet]);
 
   // get lang from browser
   useEffect(() => {
