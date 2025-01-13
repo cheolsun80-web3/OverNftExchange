@@ -23,6 +23,7 @@ export const NFTCollection = () => {
   const [bidPrice, setBidPrice] = useState(0);
   const [topBid, setTopBid] = useState({ bidder: "", price: 0 });
   const [history, setHistory] = useState([]);
+  const [historySize, setHistorySize] = useState(0);
   const [myNfts, setMyNfts] = useState([]);
   const [selectedTab, setSelectedTab] = useState("sell");
   const [showMyNftsModal, setShowMyNftsModal] = useState(false); // 모달 상태
@@ -42,6 +43,7 @@ export const NFTCollection = () => {
       hash,
     });
   const [sortType, setSortType] = useState("priceAsc");
+  const [historySort, setHistorySort] = useState("blockDesc"); // 기본값: 최신 블록순
   const [notifications, setNotifications] = useState([]);
   const [showTopInfo, setShowTopInfo] = useState(true); // useState import 확인
 
@@ -171,6 +173,7 @@ export const NFTCollection = () => {
         // 0. getTopBid
         // 1. getBids
         // 2. getTradeHistoryLast
+        // 3. getTradeHistorySize(address)
 
         datas.push({
           address: env.contracts.NFTExchange,
@@ -191,6 +194,13 @@ export const NFTCollection = () => {
           abi: abi.NFTExchange,
           functionName: "getTradeHistoryLast",
           args: [address, 100],
+        });
+
+        datas.push({
+          address: env.contracts.NFTExchange,
+          abi: abi.NFTExchange,
+          functionName: "getTradeHistorySize",
+          args: [address],
         });
 
         const results = await publicClient.multicall({
@@ -235,7 +245,10 @@ export const NFTCollection = () => {
           setHistory(items);
         }
 
-        
+        {
+          const size = results[3].result;
+          setHistorySize(Number(size));
+        }
       } catch (err) {
         console.error(err);
       }
@@ -540,6 +553,21 @@ export const NFTCollection = () => {
     }
   }, [hash]);
 
+  const sortedHistory = [...history].sort((a, b) => {
+    switch (historySort) {
+      case "blockAsc":
+        return Number(a.bn) - Number(b.bn);
+      case "blockDesc":
+        return Number(b.bn) - Number(a.bn);
+      case "priceAsc":
+        return Number(a.price) - Number(b.price);
+      case "priceDesc":
+        return Number(b.price) - Number(a.price);
+      default:
+        return Number(b.bn) - Number(a.bn);
+    }
+  });
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-purple-50/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -813,9 +841,35 @@ export const NFTCollection = () => {
         {/* Trade History Table */}
         {selectedTab === "history" && (
           <div className="bg-white/70 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/80">
-            <h2 className="text-2xl font-medium text-slate-900 p-6 border-b border-slate-100">
-              Trade History
-            </h2>
+            <div className="flex justify-between items-center p-6 border-b border-slate-100">
+              <h2 className="text-2xl font-medium text-slate-900">
+                Trade History
+              </h2>
+              <select
+                className="px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                value={historySort}
+                onChange={(e) => setHistorySort(e.target.value)}
+              >
+                <option value="blockDesc">Block: New to Old</option>
+                <option value="blockAsc">Block: Old to New</option>
+                <option value="priceDesc">Price: High to Low</option>
+                <option value="priceAsc">Price: Low to High</option>
+              </select>
+            </div>
+            <div className="p-6">
+              <p className="text-slate-700 font-mono">
+                Total Trade History: {historySize}
+              </p>
+              <p className="text-slate-500 font-mono">
+                Average last 100 Price: {(history.reduce((acc, curr) => acc + Number(curr.price), 0) / history.length).toFixed(2)} OVER
+              </p>
+              <p className="text-slate-500 font-mono">
+                Highest Price: {Math.max(...history.map(trade => Number(trade.price)))} OVER
+              </p>
+              <p className="text-slate-500 font-mono">
+                Lowest Price: {Math.min(...history.map(trade => Number(trade.price)))} OVER
+              </p>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full divide-y divide-slate-200">
                 <thead className="bg-slate-50/50">
@@ -838,7 +892,7 @@ export const NFTCollection = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white/50 divide-y divide-slate-200">
-                  {history.map((trade, index) => (
+                  {sortedHistory.map((trade, index) => (
                     <tr key={index} className="hover:bg-slate-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <a
