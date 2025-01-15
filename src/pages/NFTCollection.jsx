@@ -116,24 +116,24 @@ export const NFTCollection = () => {
           });
         }
 
-        if (env.migrations[1].NFTsData[address]) {
-          const data_old = await publicClient.readContract({
-            address: env.migrations[1].contracts.NFTExchange,
-            abi: abi.NFTExchangeV1,
-            functionName: "getActiveAsks",
-            args: [address],
-          });
-          log("data_old:", data_old);
-          for (const item of data_old || []) {
-            items.push({
-              exchange: env.migrations[1].contracts.NFTExchange,
-              tokenId: Number(item.idx),
-              price: formatEther(item.price),
-              seller: item.seller,
-              expiration: Number(item.expiration),
-            });
-          }
-        }
+        // if (env.migrations[1].NFTsData[address]) {
+        //   const data_old = await publicClient.readContract({
+        //     address: env.migrations[1].contracts.NFTExchange,
+        //     abi: abi.NFTExchangeV1,
+        //     functionName: "getActiveAsks",
+        //     args: [address],
+        //   });
+        //   log("data_old:", data_old);
+        //   for (const item of data_old || []) {
+        //     items.push({
+        //       exchange: env.migrations[1].contracts.NFTExchange,
+        //       tokenId: Number(item.idx),
+        //       price: formatEther(item.price),
+        //       seller: item.seller,
+        //       expiration: Number(item.expiration),
+        //     });
+        //   }
+        // }
 
         if (items.length == 0) {
           setAsks([]);
