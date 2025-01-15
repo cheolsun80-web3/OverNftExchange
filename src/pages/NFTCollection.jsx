@@ -14,6 +14,7 @@ import { lang } from "../utils/lang";
 export const NFTCollection = () => {
   const { address } = useParams();
   const { address: wallet, isConnected } = useAccount();
+  const [isApprovedForAll, setIsApprovedForAll] = useState(false);
   const [walletOld, setWalletOld] = useState(wallet);
   const [balance, setBalance] = useState(0);
   const [balanceWOVER, setBalanceWOVER] = useState(0);
@@ -107,11 +108,31 @@ export const NFTCollection = () => {
         const items = [];
         for (const item of data || []) {
           items.push({
+            exchange: env.contracts.NFTExchange,
             tokenId: Number(item.idx),
             price: formatEther(item.price),
             seller: item.seller,
             expiration: Number(item.expiration),
           });
+        }
+
+        if (env.migrations[1].NFTsData[address]) {
+          const data_old = await publicClient.readContract({
+            address: env.migrations[1].contracts.NFTExchange,
+            abi: abi.NFTExchangeV1,
+            functionName: "getActiveAsks",
+            args: [address],
+          });
+          log("data_old:", data_old);
+          for (const item of data_old || []) {
+            items.push({
+              exchange: env.migrations[1].contracts.NFTExchange,
+              tokenId: Number(item.idx),
+              price: formatEther(item.price),
+              seller: item.seller,
+              expiration: Number(item.expiration),
+            });
+          }
         }
 
         if (items.length == 0) {
@@ -202,6 +223,13 @@ export const NFTCollection = () => {
           args: [address],
         });
 
+        datas.push({
+          address: address,
+          abi: abi.ERC721,
+          functionName: "isApprovedForAll",
+          args: [wallet, env.contracts.NFTExchange],
+        });
+
         const results = await publicClient.multicall({
           contracts: datas
         });
@@ -231,6 +259,7 @@ export const NFTCollection = () => {
         }
         {
           const tradeHistory = results[2].result;
+
           const items = [];
           for (const item of tradeHistory || []) {
             items.push({
@@ -241,12 +270,27 @@ export const NFTCollection = () => {
               bn: Number(item.bn),
             });
           }
+          if (env.migrations[1].NFTsData[address]) {
+            const tradeHistory_old = env.migrations[1].NFTsData[address].tradeHistory;
+            for (const item of tradeHistory_old || []) {
+              items.push(item);
+            }
+          }
           setHistory(items);
         }
 
         {
-          const size = results[3].result;
+          let size = results[3].result;
+          if (env.migrations[1].NFTsData[address]) {
+            const size_old = env.migrations[1].NFTsData[address].tradeHistory.length;
+            size = Number(size) + Number(size_old);
+          }
           setHistorySize(Number(size));
+        }
+
+        {
+          const isApprovedForAll = results[4].result;
+          setIsApprovedForAll(isApprovedForAll);
         }
       } catch (err) {
         console.error(err);
@@ -323,6 +367,18 @@ export const NFTCollection = () => {
   }
 
   const checkApprovalInner = async (tokenId) => {
+    const isApprovedForAll = await publicClient.readContract({
+      address: address,
+      abi: abi.ERC721,
+      functionName: "isApprovedForAll",
+      args: [wallet, env.contracts.NFTExchange],
+    });
+    log("isApprovedForAll:", isApprovedForAll);
+
+    if (isApprovedForAll) {
+      return true;
+    }
+
     const getApproved = await publicClient.readContract({
       address: address,
       abi: abi.ERC721,
@@ -485,7 +541,7 @@ export const NFTCollection = () => {
 
     // function acceptAsk(IERC721 nft, uint256 tokenId, uint256 price) public payable {
     var txhash = await tryWriteContractAsync({
-      address: env.contracts.NFTExchange,
+      address: item.exchange,
       abi: abi.NFTExchange,
       functionName: "acceptAsk",
       args: [address, item.tokenId, parseEther(item.price)],
@@ -1128,9 +1184,35 @@ export const NFTCollection = () => {
                   </div>
                 </div>
                 <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                  <div className="relative group">
+                    <button
+                      type="button"
+                      className="w-full sm:w-auto mb-3 sm:mb-0 inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none sm:ml-3 sm:text-sm transition-all duration-200"
+                      onClick={async () => {
+                        const txhash = await tryWriteContractAsync({
+                          address: address,
+                          abi: abi.ERC721,
+                          functionName: "setApprovalForAll",
+                          args: [env.contracts.NFTExchange, !isApprovedForAll],
+                        });
+                        setHash(txhash);
+                        setUpdate(update + 1);
+                      }}
+                    >
+                      {isApprovedForAll ? "Cancel Approval" : "Approve All NFTs"}
+                    </button>
+                    <div className="absolute bottom-full transform translate-x-0 sm:-translate-x-1/2 hidden group-hover:block w-64 z-50 m-10">
+                      <div className="bg-slate-800 text-white text-sm rounded-lg p-2 shadow-lg">
+                        <div className="relative">
+                          {isApprovedForAll ? lang[langCode].tooltips.cancelApproval : lang[langCode].tooltips.approveAll}
+                          <div className="absolute w-2 h-2 bg-slate-800 transform rotate-45 -translate-x-1/2 -bottom-1"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                   <button
                     type="button"
-                    className="mt-3 w-full inline-flex justify-center rounded-lg border border-slate-200 shadow-sm px-4 py-2 bg-white text-base font-medium text-slate-900 hover:bg-slate-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition-all duration-200"
+                    className="mt-3 sm:mt-0 w-full inline-flex justify-center rounded-lg border border-slate-200 shadow-sm px-4 py-2 bg-white text-base font-medium text-slate-900 hover:bg-slate-50 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm transition-all duration-200"
                     onClick={() => setShowMyNftsModal(false)}
                   >
                     Cancel
