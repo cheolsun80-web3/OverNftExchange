@@ -476,7 +476,7 @@ export const NFTCollection = () => {
       log("addAsk:", txhash);
     } else if (sellType === "BID") {
       const confirmed = confirm(
-        lang[langCode].prompts.bidConfirm.replace("%s", tokenId).replace("%s", topBid.price)
+        lang[langCode].prompts.askConfirm.replace("%s", tokenId).replace("%s", topBid.price)
       );
       if (!confirmed) {
         setIsWaiting(false);
