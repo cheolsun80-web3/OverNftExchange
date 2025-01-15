@@ -565,7 +565,7 @@ export const NFTCollection = () => {
 
     // function removeAsk(IERC721 nft, uint256 tokenId)
     var txhash = await tryWriteContractAsync({
-      address: env.contracts.NFTExchange,
+      address: item.exchange,
       abi: abi.NFTExchange,
       functionName: "removeAsk",
       args: [address, item.tokenId],
