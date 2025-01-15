@@ -1,3 +1,5 @@
+import { env } from "../env";
+
 export const Footer = () => {
   return (
     <footer className="bg-white/70 backdrop-blur-sm border-t border-white/80">
@@ -30,7 +32,7 @@ export const Footer = () => {
               Discord
             </a>
             <a
-              href="https://scan.over.network/address/0x45b737bB344766209170a024a90bFE94E214c4d9?tab=contract"
+              href={`https://scan.over.network/address/${env.contracts.NFTExchange}?tab=contract`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-slate-500 hover:text-indigo-600 transition-colors duration-200"
