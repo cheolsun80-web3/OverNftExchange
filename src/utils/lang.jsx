@@ -4,6 +4,7 @@ export const lang = {
             "wallet": "Wallet connection is required.",
             "approve": "NFT Exchange is not approved to sell NFTs",
             "number": "Please enter a valid number.",
+            "address": "Please enter a valid address.",
         },
         prompts: {
             "askPrice": "Please enter a price to sell (1 = 1 over)",
@@ -14,6 +15,8 @@ export const lang = {
             "askCancel": "Are you sure you want to cancel the sale order for Token %s?",
             "bidCancel": "Are you sure you want to cancel the bid order for %s OVER?",
             "withdrawWOVER": "Are you sure you want to withdraw WOVER?",
+            "transferToAddress": "Please enter the address to transfer the %s NFT (id: %s) to",
+            "transferConfirm": "Are you sure you want to transfer the %s NFT (id: %s) to %s?",
         },
         etc: {
             "show": "Show Info",
@@ -25,6 +28,7 @@ export const lang = {
             "wallet": "지갑 연결이 필요합니다.",
             "approve": "NFT Exchange가 NFT를 대신 판매할 수 있도록 승인해주세요.",
             "number": "올바른 숫자를 입력하세요.",
+            "address": "올바른 주소를 입력하세요.",
         },
         prompts: {
             "askPrice": "판매 가격을 입력하세요 (1 = 1 over)",
@@ -35,6 +39,8 @@ export const lang = {
             "askCancel": "Token %s의 판매 주문을 취소하시겠습니까?",
             "bidCancel": "%s OVER Bid 주문을 취소하시겠습니까?",
             "withdrawWOVER": "WOVER를 OVER로 출금하시겠습니까?",
+            "transferToAddress": "Token %s (id: %s)을 전송받을 주소를 입력하세요.",
+            "transferConfirm": "%s NFT (id: %s)을 %s로 전송하시겠습니까?",
         },
         etc: {
             "show": "정보 펼치기",

@@ -7,7 +7,7 @@ import {
   useWriteContract,
   useWaitForTransactionReceipt,
 } from "wagmi";
-import { parseEther, formatEther } from "viem";
+import { parseEther, formatEther, isAddress } from "viem";
 import { env, log } from "../env";
 import { abi } from "../utils/abi";
 import { lang } from "../utils/lang";
@@ -30,6 +30,7 @@ export const NFTCollection = () => {
   const [showMyNftsModal, setShowMyNftsModal] = useState(false); // 모달 상태
   const [sellType, setSellType] = useState("ASK");
   const [showBidModal, setShowBidModal] = useState(false); // 모달 상태
+  const [showNftTransferModal, setShowNftTransferModal] = useState(false); // 모달 상태
   const [update, setUpdate] = useState(0);
   const [updateBalance, setUpdateBalance] = useState(0);
   const navigate = useNavigate();
@@ -355,6 +356,39 @@ export const NFTCollection = () => {
     // check again
     await checkApproval(tokenId);
   };
+  const handleTransferNft = async (tokenId) => {
+    setIsWaiting(true);
+    var txhash;
+    const toAddress = prompt(lang[langCode].prompts.transferToAddress.replace("%s", env.NFTs.find(nft => nft.address === address).name).replace("%s", tokenId));
+    if (!toAddress || toAddress.length != 42 || !toAddress.startsWith("0x") || !isAddress(toAddress, {strict: true})) {
+      alert(lang[langCode].errors.address);
+      setIsWaiting(false);
+      return;
+    }
+
+    const confirmed = confirm(lang[langCode].prompts.transferConfirm.replace("%s", env.NFTs.find(nft => nft.address === address).name).replace("%s", tokenId).replace("%s", toAddress));
+    if (!confirmed) {
+      setIsWaiting(false);
+      return;
+    }
+
+    txhash = await tryWriteContractAsync({
+      address: address,
+      abi: abi.ERC721,
+      functionName: "transferFrom",
+      args: [wallet, toAddress, tokenId],
+    });
+    setHash(txhash);
+    log("transferFrom:", txhash);
+    while (isPending || isConfirming) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      log("waiting for isConfirming", isConfirming);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    setIsWaiting(false);
+    setUpdateBalance(updateBalance+1);setUpdate(update + 1);
+    setShowMyNftsModal(false);
+  }
   // NFT를 선택했을 때 (예: 판매 트랜잭션 실행 등)
   const handleSelectNft = async (tokenId) => {
     setIsWaiting(true);
@@ -649,7 +683,7 @@ export const NFTCollection = () => {
                     <span className="px-2 py-2 bg-slate-50 rounded-xl text-slate-700 font-medium text-center text-sm md:text-base">
                       WOVER<br/>{balanceWOVER}
                     </span>
-                    <span className="px-2 py-2 bg-slate-50 rounded-xl text-slate-700 font-medium text-center text-sm md:text-base">
+                    <span className="px-2 py-2 bg-slate-50 rounded-xl text-slate-700 font-medium text-center text-sm md:text-base" onClick={() => setShowNftTransferModal(true)}>
                       NFT<br/>{balanceNFT}
                     </span>
                   </div>
@@ -1002,7 +1036,58 @@ export const NFTCollection = () => {
             )}
           </div>
         )}
+        {/* Modals */}
+        {showNftTransferModal && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+              <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+                <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+              </div>
 
+              <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+                <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                  <div className="sm:flex sm:items-start">
+                    <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
+                      <h3 className="text-lg leading-6 font-medium text-slate-900 mb-4">
+                        Transfer My NFT
+                      </h3>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                        {myNfts.map((nft) => (
+                          <div
+                            key={nft.tokenId}
+                            className="group cursor-pointer"
+                            onClick={() => handleTransferNft(nft.tokenId)}
+                          >
+                            <div className="relative aspect-square overflow-hidden rounded-lg border border-slate-200 group-hover:border-slate-300">
+                              <img
+                                src={nft.imageUrl}
+                                alt={`Token ${nft.tokenId}`}
+                                className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-200"
+                              />
+                              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity" />
+                            </div>
+                            <p className="mt-2 text-sm text-center text-slate-600">
+                              Token #{nft.tokenId}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                  <button
+                    type="button"
+                    className="mt-3 w-full inline-flex justify-center rounded-lg border border-slate-200 shadow-sm px-4 py-2 bg-white text-base font-medium text-slate-900 hover:bg-slate-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition-all duration-200"
+                    onClick={() => setShowNftTransferModal(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         {/* Modals */}
         {showMyNftsModal && (
           <div className="fixed inset-0 z-50 overflow-y-auto">
