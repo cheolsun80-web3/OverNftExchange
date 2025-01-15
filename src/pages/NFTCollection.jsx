@@ -116,9 +116,9 @@ export const NFTCollection = () => {
           });
         }
 
-        // if (env.migrations[1].NFTsData[address]) {
+        // if (env.migrations["1.0"].NFTsData[address]) {
         //   const data_old = await publicClient.readContract({
-        //     address: env.migrations[1].contracts.NFTExchange,
+        //     address: env.migrations["1.0"].contracts.NFTExchange,
         //     abi: abi.NFTExchangeV1,
         //     functionName: "getActiveAsks",
         //     args: [address],
@@ -126,7 +126,7 @@ export const NFTCollection = () => {
         //   log("data_old:", data_old);
         //   for (const item of data_old || []) {
         //     items.push({
-        //       exchange: env.migrations[1].contracts.NFTExchange,
+        //       exchange: env.migrations["1.0"].contracts.NFTExchange,
         //       tokenId: Number(item.idx),
         //       price: formatEther(item.price),
         //       seller: item.seller,
@@ -270,8 +270,8 @@ export const NFTCollection = () => {
               bn: Number(item.bn),
             });
           }
-          if (env.migrations[1].NFTsData[address]) {
-            const tradeHistory_old = env.migrations[1].NFTsData[address].tradeHistory;
+          if (env.migrations["1.0"].NFTsData[address]) {
+            const tradeHistory_old = env.migrations["1.0"].NFTsData[address].tradeHistory;
             for (const item of tradeHistory_old || []) {
               items.push(item);
             }
@@ -281,8 +281,8 @@ export const NFTCollection = () => {
 
         {
           let size = results[3].result;
-          if (env.migrations[1].NFTsData[address]) {
-            const size_old = env.migrations[1].NFTsData[address].tradeHistory.length;
+          if (env.migrations["1.0"].NFTsData[address]) {
+            const size_old = env.migrations["1.0"].NFTsData[address].tradeHistory.length;
             size = Number(size) + Number(size_old);
           }
           setHistorySize(Number(size));
@@ -367,16 +367,19 @@ export const NFTCollection = () => {
   }
 
   const checkApprovalInner = async (tokenId) => {
-    const isApprovedForAll = await publicClient.readContract({
-      address: address,
-      abi: abi.ERC721,
-      functionName: "isApprovedForAll",
-      args: [wallet, env.contracts.NFTExchange],
-    });
-    log("isApprovedForAll:", isApprovedForAll);
+    // todo
+    if (sellType === "ASK") {
+      const isApprovedForAll = await publicClient.readContract({
+        address: address,
+        abi: abi.ERC721,
+        functionName: "isApprovedForAll",
+        args: [wallet, env.contracts.NFTExchange],
+      });
+      log("isApprovedForAll:", isApprovedForAll);
 
-    if (isApprovedForAll) {
-      return true;
+      if (isApprovedForAll) {
+        return true;
+      }
     }
 
     const getApproved = await publicClient.readContract({

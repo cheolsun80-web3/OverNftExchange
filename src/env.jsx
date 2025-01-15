@@ -1,6 +1,6 @@
 export const env = {
     "migrations": {
-        "1": {
+        "1.0": {
           "contracts": {
             "NFTExchange": "0x45b737bB344766209170a024a90bFE94E214c4d9",
           },
