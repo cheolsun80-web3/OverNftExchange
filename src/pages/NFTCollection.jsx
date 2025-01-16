@@ -243,6 +243,7 @@ export const NFTCollection = () => {
         // 4. getTradeHistoryLast(old V2.0)
         // 5. getTradeHistorySize(old V2.0)
         // 6. isApprovedForAll
+        // 7. paused
 
         datas.push({
           address: env.contracts.NFTExchange,
@@ -291,6 +292,12 @@ export const NFTCollection = () => {
           abi: abi.ERC721,
           functionName: "isApprovedForAll",
           args: [wallet, env.contracts.NFTExchange],
+        });
+
+        datas.push({
+          address: env.contracts.NFTExchange,
+          abi: abi.NFTExchangeV2,
+          functionName: "paused",
         });
 
         const results = await publicClient.multicall({
@@ -374,6 +381,13 @@ export const NFTCollection = () => {
         {
           const isApprovedForAll = results[6].result;
           setIsApprovedForAll(isApprovedForAll);
+        }
+
+        {
+          const paused = results[7].result;
+          if (paused) {
+            alert("Contract is being updated. Please visit later.");
+          }
         }
 
         if (env.migrations["1.0"].NFTsData[address]) {
