@@ -8,8 +8,8 @@ export const lang = {
             "bidCount": "The number of bids is less than the number of tokens to be sold.",
         },
         prompts: {
-            "askPrice": "Please enter a price to sell (1 = 1 over)",
-            "askConfirm": "Are you sure you want to create an order to sell Token %s for %s OVER?",
+            "askPrice": "Please enter a price to sell (1 = 1 over). A 3% transaction fee will be charged when the trade is executed.",
+            "askConfirm": "Are you sure you want to create an order to sell Token %s for %s OVER? A 3% transaction fee will be charged when the trade is executed.",
             "askConfirmBatch": "Are you sure you want to create an order to sell all of the %s tokens (%s) combined for %s OVER?",
             "bidConfirm": "Are you sure you want to create an order to buy Token %s for %s OVER?",
             "bidConfirmBuy": "Are you sure you want to create an order to buy %s OVER?",
@@ -38,8 +38,8 @@ export const lang = {
             "bidCount": "구매 주문 수가 판매 주문 수보다 적습니다.",
         },
         prompts: {
-            "askPrice": "판매 가격을 입력하세요 (1 = 1 over)",
-            "askConfirm": "Token %s를 %s OVER에 판매하는 주문을 생성하시겠습니까?",
+            "askPrice": "판매 가격을 입력하세요 (1 = 1 over). 거래 발생이 되면 3%의 수수료가 부과됩니다.",
+            "askConfirm": "Token %s를 %s OVER에 판매하는 주문을 생성하시겠습니까? 거래 발생이 되면 3%의 수수료가 부과됩니다.",
             "askConfirmBatch": "Token %s개를(%s) 모두 합쳐서 %s OVER에 판매하는 주문을 생성하시겠습니까?",
             "bidConfirm": "Token %s를 %s OVER에 구매하는 주문을 생성하시겠습니까?",
             "bidConfirmBuy": "%s OVER로 구매 주문을 생성하시겠습니까?",
