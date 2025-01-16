@@ -22,7 +22,7 @@ export const NFTCollection = () => {
   const [nftTotalSupply, setNftTotalSupply] = useState(null);
   const [asks, setAsks] = useState([]);
   const [bids, setBids] = useState([]);
-  const [bidPrice, setBidPrice] = useState(0);
+  const [bidPrice, setBidPrice] = useState("");
   const [topBid, setTopBid] = useState({ bidder: "", price: 0 });
   const [history, setHistory] = useState([]);
   const [historySize, setHistorySize] = useState(0);
@@ -38,6 +38,7 @@ export const NFTCollection = () => {
   const publicClient = usePublicClient();
   const { writeContractAsync, isPending } = useWriteContract();
   const [isWaiting, setIsWaiting] = useState(false);
+  const [loadNFTs, setloadNFTs] = useState([]);
 
   const [langCode, setLangCode] = useState("en");
   const [hash, setHash] = useState(null);
@@ -49,6 +50,12 @@ export const NFTCollection = () => {
   const [historySort, setHistorySort] = useState("blockDesc"); // 기본값: 최신 블록순
   const [notifications, setNotifications] = useState([]);
   const [showTopInfo, setShowTopInfo] = useState(true); // useState import 확인
+  const [currentNftPage, setCurrentNftPage] = useState(1);
+  const nftsPerPage = 8;
+  const [currentAsksPage, setCurrentAsksPage] = useState(1);
+  const asksPerPage = 9;
+  const [asksViewMode, setAsksViewMode] = useState("album"); // 'album' or 'list'
+  const [selectedNfts, setSelectedNfts] = useState(new Set());
 
   useEffect(() => {
     if (walletOld != wallet) {
@@ -79,7 +86,16 @@ export const NFTCollection = () => {
     if (!isConnected) return;
     (async () => {
       try {
-        const nfts = await fetch(`https://scan.over.network/api/v2/tokens/${address}/instances?holder_address_hash=${wallet}`).then((r) => r.json());
+        if (update % 2 != 0) {
+          return;
+        }
+        if (loadNFTs.includes(update)) {
+          return;
+        }
+        loadNFTs.push(update);
+        let nfts = await fetch(
+          `https://scan.over.network/api/v2/tokens/${address}/instances?holder_address_hash=${wallet}`
+        ).then((r) => r.json());
 
         const items = [];
         for (const item of nfts.items || []) {
@@ -88,19 +104,30 @@ export const NFTCollection = () => {
             imageUrl: item.image_url,
           });
         }
+        while (nfts.next_page_params) {
+          nfts = await fetch(
+            `https://scan.over.network/api/v2/tokens/${address}/instances?holder_address_hash=${wallet}&unique_token=${nfts.next_page_params.unique_token}`
+          ).then((r) => r.json());
+          for (const item of nfts.items || []) {
+            items.push({
+              tokenId: item.id,
+              imageUrl: item.image_url,
+            });
+          }
+        }
         setMyNfts(items);
       } catch (err) {
         console.error(err);
       }
     })();
-  }, [address, wallet, isConnected, update]);
+  }, [update]);
 
   useEffect(() => {
     (async () => {
       try {
         const data = await publicClient.readContract({
           address: env.contracts.NFTExchange,
-          abi: abi.NFTExchange,
+          abi: abi.NFTExchangeV2,
           functionName: "getActiveAsks",
           args: [address],
         });
@@ -134,6 +161,24 @@ export const NFTCollection = () => {
         //     });
         //   }
         // }
+        if (env.migrations["2.0"].NFTsData[address]) {
+          const data_old = await publicClient.readContract({
+            address: env.migrations["2.0"].contracts.NFTExchange,
+            abi: abi.NFTExchangeV2,
+            functionName: "getActiveAsks",
+            args: [address],
+          });
+          log("data_old:", data_old);
+          for (const item of data_old || []) {
+            items.push({
+              exchange: env.migrations["2.0"].contracts.NFTExchange,
+              tokenId: Number(item.idx),
+              price: formatEther(item.price),
+              seller: item.seller,
+              expiration: Number(item.expiration),
+            });
+          }
+        }
 
         if (items.length == 0) {
           setAsks([]);
@@ -168,7 +213,6 @@ export const NFTCollection = () => {
     })();
   }, [address, publicClient, update, sortType]);
 
-
   useEffect(() => {
     (async () => {
       try {
@@ -187,38 +231,57 @@ export const NFTCollection = () => {
 
   useEffect(() => {
     (async () => {
-      if (update == 0) {return;}
-      try{
+      if (update == 0) {
+        return;
+      }
+      try {
         const datas = [];
         // 0. getTopBid
         // 1. getBids
-        // 2. getTradeHistoryLast
-        // 3. getTradeHistorySize(address)
+        // 2. getTradeHistoryLast(new)
+        // 3. getTradeHistorySize(new)
+        // 4. getTradeHistoryLast(old V2.0)
+        // 5. getTradeHistorySize(old V2.0)
+        // 6. isApprovedForAll
 
         datas.push({
           address: env.contracts.NFTExchange,
-          abi: abi.NFTExchange,
+          abi: abi.NFTExchangeV2,
           functionName: "getTopBid",
           args: [address],
         });
 
         datas.push({
           address: env.contracts.NFTExchange,
-          abi: abi.NFTExchange,
+          abi: abi.NFTExchangeV2,
           functionName: "getBids",
           args: [address],
         });
 
         datas.push({
           address: env.contracts.NFTExchange,
-          abi: abi.NFTExchange,
+          abi: abi.NFTExchangeV2,
           functionName: "getTradeHistoryLast",
           args: [address, 100],
         });
 
         datas.push({
           address: env.contracts.NFTExchange,
-          abi: abi.NFTExchange,
+          abi: abi.NFTExchangeV2,
+          functionName: "getTradeHistorySize",
+          args: [address],
+        });
+
+        datas.push({
+          address: env.migrations["2.0"].contracts.NFTExchange,
+          abi: abi.NFTExchangeV2,
+          functionName: "getTradeHistoryLast",
+          args: [address, 100],
+        });
+
+        datas.push({
+          address: env.migrations["2.0"].contracts.NFTExchange,
+          abi: abi.NFTExchangeV2,
           functionName: "getTradeHistorySize",
           args: [address],
         });
@@ -231,9 +294,9 @@ export const NFTCollection = () => {
         });
 
         const results = await publicClient.multicall({
-          contracts: datas
+          contracts: datas,
         });
-        log('Multicall3:', results);
+        log("Multicall3:", results);
 
         {
           const topBid = results[0].result;
@@ -257,6 +320,9 @@ export const NFTCollection = () => {
           });
           setBids(items);
         }
+
+        let history_merged = [];
+        let history_size = 0;
         {
           const tradeHistory = results[2].result;
 
@@ -271,27 +337,58 @@ export const NFTCollection = () => {
             });
           }
           if (env.migrations["1.0"].NFTsData[address]) {
-            const tradeHistory_old = env.migrations["1.0"].NFTsData[address].tradeHistory;
+            const tradeHistory_old =
+              env.migrations["1.0"].NFTsData[address].tradeHistory;
             for (const item of tradeHistory_old || []) {
               items.push(item);
             }
           }
-          setHistory(items);
+          history_merged.push(...items);
         }
 
         {
           let size = results[3].result;
-          if (env.migrations["1.0"].NFTsData[address]) {
-            const size_old = env.migrations["1.0"].NFTsData[address].tradeHistory.length;
-            size = Number(size) + Number(size_old);
-          }
-          setHistorySize(Number(size));
+          history_size += Number(size);
         }
 
         {
-          const isApprovedForAll = results[4].result;
+          const tradeHistory = results[4].result;
+          const items = [];
+          for (const item of tradeHistory || []) {
+            items.push({
+              tokenId: Number(item.tokenId),
+              seller: item.seller,
+              buyer: item.buyer,
+              price: formatEther(item.price),
+              bn: Number(item.bn),
+            });
+          }
+          history_merged.push(...items);
+        }
+
+        {
+          const size = results[5].result;
+          history_size += Number(size);
+        }
+
+        {
+          const isApprovedForAll = results[6].result;
           setIsApprovedForAll(isApprovedForAll);
         }
+
+        if (env.migrations["1.0"].NFTsData[address]) {
+          const size_old =
+            env.migrations["1.0"].NFTsData[address].tradeHistory.length;
+          history_size = Number(history_size) + Number(size_old);
+        }
+
+        // sort history_merged by bn
+        history_merged.sort((a, b) => {
+          return b.bn - a.bn;
+        });
+
+        setHistory(history_merged);
+        setHistorySize(history_size);
       } catch (err) {
         console.error(err);
       }
@@ -300,7 +397,9 @@ export const NFTCollection = () => {
 
   useEffect(() => {
     (async () => {
-      if (updateBalance == 0) {return;}
+      if (updateBalance == 0) {
+        return;
+      }
       try {
         if (!wallet) return;
         const balance = await publicClient.getBalance({ address: wallet });
@@ -308,7 +407,7 @@ export const NFTCollection = () => {
         // float point 2
         balanceOver = parseFloat(balanceOver).toFixed(2);
         setBalance(balanceOver);
-        
+
         const datas = [];
         // 0. balanceOf WETH
         // 1. balanceOf NFT
@@ -326,7 +425,7 @@ export const NFTCollection = () => {
           args: [wallet],
         });
         const results = await publicClient.multicall({ contracts: datas });
-        log('updateBalance:', results);
+        log("updateBalance:", results);
 
         const balanceWOVER = results[0].result;
         const balanceNFT = Number(results[1].result);
@@ -354,7 +453,7 @@ export const NFTCollection = () => {
     return () => {
       clearInterval(intervalUpdateBalance);
       clearInterval(intervalUpdate);
-    }
+    };
   }, []);
 
   const tryWriteContractAsync = async (...args) => {
@@ -364,68 +463,78 @@ export const NFTCollection = () => {
       alert(err.message);
       return false;
     }
-  }
+  };
 
-  const checkApprovalInner = async (tokenId) => {
-    // todo
-    if (sellType === "ASK") {
-      const isApprovedForAll = await publicClient.readContract({
-        address: address,
-        abi: abi.ERC721,
-        functionName: "isApprovedForAll",
-        args: [wallet, env.contracts.NFTExchange],
-      });
-      log("isApprovedForAll:", isApprovedForAll);
-
-      if (isApprovedForAll) {
-        return true;
-      }
-    }
-
-    const getApproved = await publicClient.readContract({
+  const checkApprovalInner = async () => {
+    const isApprovedForAll = await publicClient.readContract({
       address: address,
       abi: abi.ERC721,
-      functionName: "getApproved",
-      args: [tokenId],
+      functionName: "isApprovedForAll",
+      args: [wallet, env.contracts.NFTExchange],
     });
-    log("getApproved:", getApproved);
-
-    if (getApproved != env.contracts.NFTExchange) {
-      alert(lang[langCode].errors.approve);
-      var txhash = await tryWriteContractAsync({
-        address: address,
-        abi: abi.ERC721,
-        functionName: "approve",
-        args: [env.contracts.NFTExchange, tokenId],
-      });
-      log("approve:", txhash);
-      setHash(txhash);
-      return false;
-    }
-    return true;
+    if (isApprovedForAll) return [true, null];
+    alert(
+      lang[langCode].prompts.approveAll.replace(
+        "%s",
+        env.NFTs.find((nft) => nft.address === address).name
+      )
+    );
+    var txhash = await tryWriteContractAsync({
+      address: address,
+      abi: abi.ERC721,
+      functionName: "setApprovalForAll",
+      args: [env.contracts.NFTExchange, true],
+    });
+    log("setApprovalForAll:", txhash);
+    setHash(txhash);
+    return [false, txhash];
   };
-  const checkApproval = async (tokenId) => {
-    if (await checkApprovalInner(tokenId)) return;
+  const checkApproval = async () => {
+    const [isApproved, txhash] = await checkApprovalInner();
+    if (isApproved) return;
     // wait for isConfirming
     while (isPending || isConfirming) {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 3000));
       log("waiting for isConfirming", isConfirming);
     }
-    await new Promise((resolve) => setTimeout(resolve, 6000));
+
+    while (true) {
+      try {
+        await publicClient.getTransactionReceipt({ hash: txhash });
+        break;
+      } catch (err) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     // check again
-    await checkApproval(tokenId);
+    await checkApproval();
   };
   const handleTransferNft = async (tokenId) => {
     setIsWaiting(true);
     var txhash;
-    const toAddress = prompt(lang[langCode].prompts.transferToAddress.replace("%s", env.NFTs.find(nft => nft.address === address).name).replace("%s", tokenId));
-    if (!toAddress || toAddress.length != 42 || !toAddress.startsWith("0x") || !isAddress(toAddress, {strict: true})) {
+    const toAddress = prompt(
+      lang[langCode].prompts.transferToAddress
+        .replace("%s", env.NFTs.find((nft) => nft.address === address).name)
+        .replace("%s", tokenId)
+    );
+    if (
+      !toAddress ||
+      toAddress.length != 42 ||
+      !toAddress.startsWith("0x") ||
+      !isAddress(toAddress, { strict: true })
+    ) {
       alert(lang[langCode].errors.address);
       setIsWaiting(false);
       return;
     }
 
-    const confirmed = confirm(lang[langCode].prompts.transferConfirm.replace("%s", env.NFTs.find(nft => nft.address === address).name).replace("%s", tokenId).replace("%s", toAddress));
+    const confirmed = confirm(
+      lang[langCode].prompts.transferConfirm
+        .replace("%s", env.NFTs.find((nft) => nft.address === address).name)
+        .replace("%s", tokenId)
+        .replace("%s", toAddress)
+    );
     if (!confirmed) {
       setIsWaiting(false);
       return;
@@ -445,13 +554,15 @@ export const NFTCollection = () => {
     }
     await new Promise((resolve) => setTimeout(resolve, 2000));
     setIsWaiting(false);
-    setUpdateBalance(updateBalance+1);setUpdate(update + 1);
-    setShowMyNftsModal(false);
-  }
+    setUpdateBalance(updateBalance + 1);
+    setUpdate(update + 1);
+    modalClose();
+  };
   // NFT를 선택했을 때 (예: 판매 트랜잭션 실행 등)
-  const handleSelectNft = async (tokenId) => {
+  const handleSelectNft = async (tokenIds) => {
+    log("handleSelectNft tokenIds:", tokenIds);
     setIsWaiting(true);
-    await checkApproval(tokenId);
+    await checkApproval();
     var txhash;
 
     if (sellType === "ASK") {
@@ -461,36 +572,53 @@ export const NFTCollection = () => {
         return alert(lang[langCode].errors.number);
       }
       const confirmed = confirm(
-        lang[langCode].prompts.askConfirm.replace("%s", tokenId).replace("%s", price)
+        lang[langCode].prompts.askConfirm
+          .replace("%s", tokenIds)
+          .replace("%s", price)
       );
       if (!confirmed) {
         setIsWaiting(false);
         return;
       }
 
-      // function addAsk(IERC721 nft, uint256 tokenId, uint256 price)
+      // function addAskBatch(IERC721 nft, uint256[] memory tokenIds, uint256 price)
       txhash = await tryWriteContractAsync({
         address: env.contracts.NFTExchange,
-        abi: abi.NFTExchange,
-        functionName: "addAsk",
-        args: [address, tokenId, parseEther(price)],
+        abi: abi.NFTExchangeV2,
+        functionName: "addAskBatch",
+        args: [address, tokenIds, parseEther(price)],
       });
       setHash(txhash);
       log("addAsk:", txhash);
     } else if (sellType === "BID") {
+      // check bids count < tokenIds.length
+      if (bids.length < tokenIds.length) {
+        alert(lang[langCode].errors.bidCount);
+        setIsWaiting(false);
+        return;
+      }
+      const totalBidPrice = bids
+        .slice(0, selectedNfts.size)
+        .map((bid) => Number(bid.price))
+        .reduce((a, b) => a + b, 0);
+
       const confirmed = confirm(
-        lang[langCode].prompts.askConfirm.replace("%s", tokenId).replace("%s", topBid.price)
+        lang[langCode].prompts.askConfirmBatch
+          .replace("%s", tokenIds.length)
+          .replace("%s", tokenIds.join(", "))
+          .replace("%s", totalBidPrice)
       );
       if (!confirmed) {
         setIsWaiting(false);
         return;
       }
-      // function acceptBid(IERC721 nft, uint256 tokenId, uint256 minPrice)
+      console.log([address, tokenIds, parseEther("" + totalBidPrice)]);
+      // function acceptBidBatch(IERC721 nft, uint256[] memory tokenIds, uint256 minPrice)
       txhash = await tryWriteContractAsync({
         address: env.contracts.NFTExchange,
-        abi: abi.NFTExchange,
-        functionName: "acceptBid",
-        args: [address, tokenId, parseEther(topBid.price)],
+        abi: abi.NFTExchangeV2,
+        functionName: "acceptBidBatch",
+        args: [address, tokenIds, parseEther("" + totalBidPrice)],
       });
       setHash(txhash);
       log("acceptBid:", txhash);
@@ -501,8 +629,9 @@ export const NFTCollection = () => {
     }
     await new Promise((resolve) => setTimeout(resolve, 6000));
     setIsWaiting(false);
-    setUpdateBalance(updateBalance+1);setUpdate(update + 1);
-    setShowMyNftsModal(false);
+    setUpdateBalance(updateBalance + 1);
+    setUpdate(update + 1);
+    modalClose();
   };
   const handleBid = async (price) => {
     if (isNaN(price) || Number(price) < 1 || Number(price) > 999999999)
@@ -510,7 +639,9 @@ export const NFTCollection = () => {
     if (Number(price) <= Number(topBid.price))
       return alert(lang[langCode].prompts.topBid);
     setIsWaiting(true);
-    const confirmed = confirm(lang[langCode].prompts.bidConfirmBuy.replace("%s", price));
+    const confirmed = confirm(
+      lang[langCode].prompts.bidConfirmBuy.replace("%s", price)
+    );
     if (!confirmed) {
       setIsWaiting(false);
       return;
@@ -519,33 +650,44 @@ export const NFTCollection = () => {
     // function addBid(IERC721 nft, uint256 price) public payable {
     var txhash = await tryWriteContractAsync({
       address: env.contracts.NFTExchange,
-      abi: abi.NFTExchange,
+      abi: abi.NFTExchangeV2,
       functionName: "addBid",
       args: [address, parseEther(price)],
       value: parseEther(price),
     });
     setHash(txhash);
     log("addBid:", txhash);
+    if (txhash == false) {
+      setIsWaiting(false);
+      setUpdateBalance(updateBalance + 1);
+      setUpdate(update + 1);
+      modalClose();
+      alert("error");
+      return;
+    }
     while (isPending || isConfirming) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
       log("waiting for isConfirming", isConfirming);
     }
     await new Promise((resolve) => setTimeout(resolve, 6000));
     setIsWaiting(false);
-    setUpdateBalance(updateBalance+1);setUpdate(update + 1);
-    setShowBidModal(false);
+    setUpdateBalance(updateBalance + 1);
+    setUpdate(update + 1);
+    modalClose();
   };
 
   const handleBuy = async (item) => {
     const confirmed = confirm(
-      lang[langCode].prompts.bidConfirm.replace("%s", item.tokenId).replace("%s", item.price)
+      lang[langCode].prompts.bidConfirm
+        .replace("%s", item.tokenId)
+        .replace("%s", item.price)
     );
     if (!confirmed) return;
 
     // function acceptAsk(IERC721 nft, uint256 tokenId, uint256 price) public payable {
     var txhash = await tryWriteContractAsync({
       address: item.exchange,
-      abi: abi.NFTExchange,
+      abi: abi.NFTExchangeV2,
       functionName: "acceptAsk",
       args: [address, item.tokenId, parseEther(item.price)],
       value: parseEther(item.price),
@@ -557,7 +699,8 @@ export const NFTCollection = () => {
       log("waiting for isConfirming", isConfirming);
     }
     await new Promise((resolve) => setTimeout(resolve, 2000));
-    setUpdateBalance(updateBalance+1);setUpdate(update + 1);
+    setUpdateBalance(updateBalance + 1);
+    setUpdate(update + 1);
   };
 
   const handleCancel = async (item) => {
@@ -569,7 +712,7 @@ export const NFTCollection = () => {
     // function removeAsk(IERC721 nft, uint256 tokenId)
     var txhash = await tryWriteContractAsync({
       address: item.exchange,
-      abi: abi.NFTExchange,
+      abi: abi.NFTExchangeV2,
       functionName: "removeAsk",
       args: [address, item.tokenId],
     });
@@ -580,7 +723,8 @@ export const NFTCollection = () => {
       log("waiting for isConfirming", isConfirming);
     }
     await new Promise((resolve) => setTimeout(resolve, 2000));
-    setUpdateBalance(updateBalance+1);setUpdate(update + 1);
+    setUpdateBalance(updateBalance + 1);
+    setUpdate(update + 1);
   };
 
   const handleWithdrawWOVER = async () => {
@@ -600,8 +744,9 @@ export const NFTCollection = () => {
       log("waiting for isConfirming", isConfirming);
     }
     await new Promise((resolve) => setTimeout(resolve, 2000));
-    setUpdateBalance(updateBalance+1);setUpdate(update + 1);
-  }
+    setUpdateBalance(updateBalance + 1);
+    setUpdate(update + 1);
+  };
 
   const handleCancelBid = async (item) => {
     const confirmed = confirm(
@@ -612,7 +757,7 @@ export const NFTCollection = () => {
     // function removeAsk(IERC721 nft, uint256 tokenId)
     var txhash = await tryWriteContractAsync({
       address: env.contracts.NFTExchange,
-      abi: abi.NFTExchange,
+      abi: abi.NFTExchangeV2,
       functionName: "removeBid",
       args: [address, item.nonce],
     });
@@ -623,7 +768,8 @@ export const NFTCollection = () => {
       log("waiting for isConfirming", isConfirming);
     }
     await new Promise((resolve) => setTimeout(resolve, 2000));
-    setUpdateBalance(updateBalance+1);setUpdate(update + 1);
+    setUpdateBalance(updateBalance + 1);
+    setUpdate(update + 1);
   };
 
   // Add notification when hash is set
@@ -634,15 +780,24 @@ export const NFTCollection = () => {
         hash,
         timestamp: new Date(),
       };
-      
-      setNotifications(prev => [...prev, newNotification]);
+
+      setNotifications((prev) => [...prev, newNotification]);
 
       // Remove notification after 30 seconds
       setTimeout(() => {
-        setNotifications(prev => prev.filter(n => n.id !== newNotification.id));
+        setNotifications((prev) =>
+          prev.filter((n) => n.id !== newNotification.id)
+        );
       }, 30000);
     }
   }, [hash]);
+
+  const modalClose = () => {
+    setShowMyNftsModal(false);
+    setShowBidModal(false);
+    setShowNftTransferModal(false);
+    setSelectedNfts(new Set());
+  };
 
   const sortedHistory = [...history].sort((a, b) => {
     switch (historySort) {
@@ -659,12 +814,67 @@ export const NFTCollection = () => {
     }
   });
 
+  const indexOfLastNft = currentNftPage * nftsPerPage;
+  const indexOfFirstNft = indexOfLastNft - nftsPerPage;
+  const currentNfts = myNfts.slice(indexOfFirstNft, indexOfLastNft);
+  const totalNftPages = Math.ceil(myNfts.length / nftsPerPage);
+
+  const handleNftPageChange = (pageNumber) => {
+    setCurrentNftPage(pageNumber);
+  };
+
+  const indexOfLastAsk = currentAsksPage * asksPerPage;
+  const indexOfFirstAsk = indexOfLastAsk - asksPerPage;
+  const currentAsks = asks.slice(indexOfFirstAsk, indexOfLastAsk);
+  const totalAsksPages = Math.ceil(asks.length / asksPerPage);
+
+  const handleNftSelection = (tokenId) => {
+    setSelectedNfts((prev) => {
+      const newSelection = new Set(prev);
+      if (!showMyNftsModal) {
+        // 전송 모드는 한개만 선택 가능
+        if (newSelection.has(tokenId)) {
+          return new Set([]);
+        } else {
+          return new Set([tokenId]);
+        }
+      }
+      if (newSelection.has(tokenId)) {
+        newSelection.delete(tokenId);
+      } else {
+        if (showMyNftsModal && sellType == "BID") {
+          if (bids.length < prev.size + 1) {
+            if (bids.length < prev.size) {
+              alert("error");
+              return new Set();
+            }
+            alert(lang[langCode].errors.bidCount);
+            return prev;
+          }
+        }
+        newSelection.add(tokenId);
+      }
+      return newSelection;
+    });
+  };
+
+  const handleBulkAction = () => {
+    const selectedTokenIds = Array.from(selectedNfts);
+    if (showMyNftsModal) {
+      // 판매 로직
+      handleSelectNft(selectedTokenIds);
+    } else {
+      // 전송 로직
+      handleTransferNft(selectedTokenIds);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-purple-50/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-lg sm:text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
-            {env.NFTs.find(nft => nft.address === address).name} Collection
+            {env.NFTs.find((nft) => nft.address === address).name} Collection
           </h1>
           <button
             onClick={() => setShowTopInfo(!showTopInfo)}
@@ -673,26 +883,49 @@ export const NFTCollection = () => {
             {showTopInfo ? (
               <>
                 <span>{lang[langCode].etc.hide}</span>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 group-hover:-translate-y-0.5 transition-transform" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4 group-hover:-translate-y-0.5 transition-transform"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
+                    clipRule="evenodd"
+                  />
                 </svg>
               </>
             ) : (
               <>
                 <span>{lang[langCode].etc.show}</span>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 group-hover:translate-y-0.5 transition-transform" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4 group-hover:translate-y-0.5 transition-transform"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                    clipRule="evenodd"
+                  />
                 </svg>
               </>
             )}
           </button>
         </div>
 
-        <div id="top-info" className={`mb-8 grid grid-cols-2 gap-8 sm:grid-cols-3 transition-all duration-300 ${showTopInfo ? 'block' : 'hidden'}`}>
+        <div
+          id="top-info"
+          className={`mb-8 grid grid-cols-2 gap-8 sm:grid-cols-3 transition-all duration-300 ${
+            showTopInfo ? "block" : "hidden"
+          }`}
+        >
           {/* Left Side */}
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 border border-white shadow-sm">
             <h1 className="text-lg sm:text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 mb-4">
-              NFT: {env.NFTs.find(nft => nft.address === address).name}
+              NFT: {env.NFTs.find((nft) => nft.address === address).name}
             </h1>
             <p className="text-slate-500 font-mono">
               <a
@@ -703,25 +936,32 @@ export const NFTCollection = () => {
               >
                 {address.slice(0, 10)}...
               </a>
-            </p><br/>
+            </p>
+            <br />
             <p className="text-slate-500 font-mono">
               Total Supply
-              <br/>
+              <br />
               {nftTotalSupply}
-            </p><br/>
+            </p>
+            <br />
 
-            <img src={env.NFTs.find(nft => nft.address === address).image} alt="NFT" className="w-full h-auto" />
+            <img
+              src={env.NFTs.find((nft) => nft.address === address).image}
+              alt="NFT"
+              className="w-full h-auto"
+            />
           </div>
           {/* sm only view div */}
-          <div className="hidden sm:block">
-          </div>
+          <div className="hidden sm:block"></div>
 
           {/* Right Side */}
           {isConnected ? (
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 border border-white shadow-sm">
               <div className="space-y-6">
                 <div>
-                  <h1 className="text-lg sm:text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 mb-4">Wallet</h1>
+                  <h1 className="text-lg sm:text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 mb-4">
+                    Wallet
+                  </h1>
                   <p className="text-slate-500 font-mono">
                     <a
                       href={`https://scan.over.network/address/${wallet}`}
@@ -734,22 +974,33 @@ export const NFTCollection = () => {
                   </p>
                 </div>
                 <div>
-                  <h3 className="text-lg font-medium text-slate-900 mb-2">Balance</h3>
+                  <h3 className="text-lg font-medium text-slate-900 mb-2">
+                    Balance
+                  </h3>
                   <div className="flex flex-wrap gap-4 grid grid-cols-2">
                     <span className="px-2 py-2 bg-slate-50 rounded-xl text-slate-700 font-medium text-center text-sm md:text-base">
-                      OVER<br/>{balance}
+                      OVER
+                      <br />
+                      {balance}
                     </span>
                     <span className="px-2 py-2 bg-slate-50 rounded-xl text-slate-700 font-medium text-center text-sm md:text-base">
-                      WOVER<br/>{balanceWOVER}
+                      WOVER
+                      <br />
+                      {balanceWOVER}
                     </span>
-                    <span className="px-2 py-2 bg-slate-50 rounded-xl text-slate-700 font-medium text-center text-sm md:text-base" onClick={() => setShowNftTransferModal(true)}>
-                      NFT<br/>{balanceNFT}
+                    <span
+                      className="px-2 py-2 bg-slate-50 rounded-xl text-slate-700 font-medium text-center text-sm md:text-base"
+                      onClick={() => setShowNftTransferModal(true)}
+                    >
+                      NFT
+                      <br />
+                      {balanceNFT}
                     </span>
                   </div>
                 </div>
                 {balanceWOVER > 0.1 && (
                   <div className="pt-2">
-                    <button 
+                    <button
                       className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-sm w-full"
                       onClick={() => handleWithdrawWOVER()}
                     >
@@ -792,85 +1043,286 @@ export const NFTCollection = () => {
         {/* Sell Orders Grid */}
         {selectedTab === "sell" && (
           <div className="mt-8">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-medium text-slate-900">Sell Orders</h2>
-              <select
-                className="px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                value={sortType}
-                onChange={(e) => setSortType(e.target.value)}
-              >
-                <option value="priceAsc">Price: Low to High</option>
-                <option value="priceDesc">Price: High to Low</option>
-                <option value="timeAsc">Time: Old to New</option>
-                <option value="timeDesc">Time: New to Old</option>
-              </select>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {asks.map((ask) => (
-                <div
-                  key={ask.tokenId}
-                  className="bg-white/70 backdrop-blur-sm rounded-2xl overflow-hidden transform hover:-translate-y-1 transition-all duration-300 hover:shadow-[0_20px_50px_rgba(8,_112,_184,_0.1)] border border-white/80"
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 mb-6">
+              <h2 className="text-2xl font-medium text-slate-900">
+                Sell Orders
+                <span className="ml-2 text-base font-normal text-slate-500">
+                  ({asks.length} items)
+                </span>
+              </h2>
+
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+                <select
+                  className="px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={sortType}
+                  onChange={(e) => setSortType(e.target.value)}
                 >
-                  <img
-                    src={ask.imageUrl}
-                    alt={`Token ${ask.tokenId}`}
-                    className="w-full h-64 object-cover transform hover:scale-105 transition-all duration-700"
-                  />
-                  <div className="p-6 space-y-4">
-                    <h3 className="text-lg font-medium text-slate-900">
-                      Token ID:{" "}
-                      <a
-                        href={`https://scan.over.network/token/${address}/instance/${ask.tokenId}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-indigo-600 hover:text-indigo-700 transition-colors"
-                      >
-                        {ask.tokenId}
-                      </a>
-                    </h3>
-                    <p className="text-slate-700 bg-slate-50 px-3 py-2 rounded-lg inline-block">
-                      Price: {ask.price} OVER
-                    </p>
-                    <p className="text-slate-600">
-                      Seller:{" "}
-                      <a
-                        href={`https://scan.over.network/address/${ask.seller}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-indigo-600 hover:text-indigo-700 transition-colors font-mono"
-                      >
-                        {ask.seller.slice(0, 8)}...{ask.seller.slice(-8)}
-                      </a>
-                    </p>
-                    <p className="text-slate-600">
-                      Expiration: {new Date(Number(ask.expiration) * 1000).toLocaleDateString()}
-                    </p>
-                    {wallet === ask.seller ? (
-                      <button
-                        className="w-full px-4 py-3 bg-gradient-to-r from-rose-600 to-pink-600 text-white rounded-xl hover:from-rose-700 hover:to-pink-700 transition-all duration-200 shadow-sm mt-4"
-                        onClick={() => handleCancel(ask)}
-                      >
-                        Remove Ask
-                      </button>
-                    ) : isConnected ? (
-                      <button
-                        className="w-full px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-sm mt-4"
-                        onClick={() => handleBuy(ask)}
-                      >
-                        Buy
-                      </button>
-                    ) : (
-                      <button
-                        className="w-full px-4 py-3 bg-slate-100 text-slate-400 rounded-xl cursor-not-allowed mt-4"
-                        disabled
-                      >
-                        {lang[langCode].errors.wallet}
-                      </button>
-                    )}
-                  </div>
+                  <option value="priceAsc">Price: Low to High</option>
+                  <option value="priceDesc">Price: High to Low</option>
+                  <option value="timeAsc">Time: Old to New</option>
+                  <option value="timeDesc">Time: New to Old</option>
+                </select>
+
+                <div className="flex items-center bg-slate-100 rounded-lg p-1 self-end sm:self-auto">
+                  <button
+                    onClick={() => setAsksViewMode("album")}
+                    className={`px-3 py-1.5 rounded-md transition-all ${
+                      asksViewMode === "album"
+                        ? "bg-white shadow-sm text-slate-900"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => setAsksViewMode("list")}
+                    className={`px-3 py-1.5 rounded-md transition-all ${
+                      asksViewMode === "list"
+                        ? "bg-white shadow-sm text-slate-900"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 6h16M4 12h16M4 18h16"
+                      />
+                    </svg>
+                  </button>
                 </div>
-              ))}
+              </div>
             </div>
+
+            {asksViewMode === "album" ? (
+              // 앨범 모드
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {currentAsks.map((ask) => (
+                  <div
+                    key={ask.tokenId}
+                    className="bg-white/70 backdrop-blur-sm rounded-2xl overflow-hidden transform hover:-translate-y-1 transition-all duration-300 hover:shadow-[0_20px_50px_rgba(8,_112,_184,_0.1)] border border-white/80"
+                  >
+                    <img
+                      src={ask.imageUrl}
+                      alt={`Token ${ask.tokenId}`}
+                      className="w-full h-64 object-cover transform hover:scale-105 transition-all duration-700"
+                    />
+                    <div className="p-6 space-y-4">
+                      <h3 className="text-lg font-medium text-slate-900">
+                        Token ID:{" "}
+                        <a
+                          href={`https://scan.over.network/token/${address}/instance/${ask.tokenId}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-indigo-600 hover:text-indigo-700 transition-colors"
+                        >
+                          {ask.tokenId}
+                        </a>
+                      </h3>
+                      <p className="text-slate-700 bg-slate-50 px-3 py-2 rounded-lg inline-block">
+                        Price: {ask.price} OVER
+                      </p>
+                      <p className="text-slate-600">
+                        Seller:{" "}
+                        <a
+                          href={`https://scan.over.network/address/${ask.seller}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-indigo-600 hover:text-indigo-700 transition-colors font-mono"
+                        >
+                          {ask.seller.slice(0, 8)}...{ask.seller.slice(-8)}
+                        </a>
+                      </p>
+                      <p className="text-slate-600">
+                        Expiration:{" "}
+                        {new Date(
+                          Number(ask.expiration) * 1000
+                        ).toLocaleDateString()}
+                      </p>
+                      {wallet === ask.seller ? (
+                        <button
+                          className="w-full px-4 py-3 bg-gradient-to-r from-rose-600 to-pink-600 text-white rounded-xl hover:from-rose-700 hover:to-pink-700 transition-all duration-200 shadow-sm mt-4"
+                          onClick={() => handleCancel(ask)}
+                        >
+                          Remove Ask
+                        </button>
+                      ) : isConnected ? (
+                        <button
+                          className="w-full px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-sm mt-4"
+                          onClick={() => handleBuy(ask)}
+                        >
+                          Buy
+                        </button>
+                      ) : (
+                        <button
+                          className="w-full px-4 py-3 bg-slate-100 text-slate-400 rounded-xl cursor-not-allowed mt-4"
+                          disabled
+                        >
+                          {lang[langCode].errors.wallet}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              // 리스트 모드
+              <div className="bg-white/70 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/80">
+                <div className="overflow-x-auto">
+                  <table className="w-full divide-y divide-slate-200">
+                    <thead className="bg-slate-50/50">
+                      <tr>
+                        <th className="px-6 py-4 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                          Token ID
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                          Image
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                          Price
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                          Seller
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                          Expiration
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white/50 divide-y divide-slate-200">
+                      {currentAsks.map((ask) => (
+                        <tr
+                          key={ask.tokenId}
+                          className="hover:bg-slate-50/80 transition-colors"
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <a
+                              href={`https://scan.over.network/token/${address}/instance/${ask.tokenId}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-indigo-600 hover:text-indigo-700 transition-colors"
+                            >
+                              {ask.tokenId}
+                            </a>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <img
+                              src={ask.imageUrl}
+                              alt={`Token ${ask.tokenId}`}
+                              className="w-12 h-12 rounded-lg object-cover"
+                            />
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-slate-900 font-medium">
+                            {ask.price} OVER
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <a
+                              href={`https://scan.over.network/address/${ask.seller}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-indigo-600 hover:text-indigo-700 transition-colors font-mono"
+                            >
+                              {ask.seller.slice(0, 8)}...{ask.seller.slice(-8)}
+                            </a>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-slate-600">
+                            {new Date(
+                              Number(ask.expiration) * 1000
+                            ).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {wallet === ask.seller ? (
+                              <button
+                                className="px-4 py-2 bg-gradient-to-r from-rose-600 to-pink-600 text-white rounded-lg hover:from-rose-700 hover:to-pink-700 transition-all duration-200"
+                                onClick={() => handleCancel(ask)}
+                              >
+                                Cancel
+                              </button>
+                            ) : isConnected ? (
+                              <button
+                                className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-200"
+                                onClick={() => handleBuy(ask)}
+                              >
+                                Buy
+                              </button>
+                            ) : (
+                              <button
+                                className="px-4 py-2 bg-slate-100 text-slate-400 rounded-lg cursor-not-allowed"
+                                disabled
+                              >
+                                Connect Wallet
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* 페이지네이션은 동일하게 유지 */}
+            {totalAsksPages > 1 && (
+              <div className="flex justify-center items-center gap-2 mt-6">
+                <button
+                  onClick={() => setCurrentAsksPage(currentAsksPage - 1)}
+                  disabled={currentAsksPage === 1}
+                  className="px-3 py-1 rounded-lg border border-slate-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                >
+                  &lt;
+                </button>
+
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    min="1"
+                    max={totalAsksPages}
+                    value={currentAsksPage}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value);
+                      if (value >= 1 && value <= totalAsksPages) {
+                        setCurrentAsksPage(value);
+                      }
+                    }}
+                    className="w-12 px-2 py-1 text-center border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <span className="text-slate-600">/</span>
+                  <span className="text-slate-600">{totalAsksPages}</span>
+                </div>
+
+                <button
+                  onClick={() => setCurrentAsksPage(currentAsksPage + 1)}
+                  disabled={currentAsksPage === totalAsksPages}
+                  className="px-3 py-1 rounded-lg border border-slate-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                >
+                  &gt;
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -897,7 +1349,10 @@ export const NFTCollection = () => {
                 </thead>
                 <tbody className="bg-white/50 divide-y divide-slate-200">
                   {bids.map((bid, index) => (
-                    <tr key={index} className="hover:bg-slate-50/80 transition-colors">
+                    <tr
+                      key={index}
+                      className="hover:bg-slate-50/80 transition-colors"
+                    >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <a
                           href={`https://scan.over.network/address/${bid.bidder}`}
@@ -952,13 +1407,20 @@ export const NFTCollection = () => {
                 Total Trade History: {historySize}
               </p>
               <p className="text-slate-500 font-mono">
-                Average last 100 Price: {(history.reduce((acc, curr) => acc + Number(curr.price), 0) / history.length).toFixed(2)} OVER
+                Average Price:{" "}
+                {(
+                  history.reduce((acc, curr) => acc + Number(curr.price), 0) /
+                  history.length
+                ).toFixed(2)}{" "}
+                OVER
               </p>
               <p className="text-slate-500 font-mono">
-                Highest Price: {Math.max(...history.map(trade => Number(trade.price)))} OVER
+                Highest Price:{" "}
+                {Math.max(...history.map((trade) => Number(trade.price)))} OVER
               </p>
               <p className="text-slate-500 font-mono">
-                Lowest Price: {Math.min(...history.map(trade => Number(trade.price)))} OVER
+                Lowest Price:{" "}
+                {Math.min(...history.map((trade) => Number(trade.price)))} OVER
               </p>
             </div>
             <div className="overflow-x-auto">
@@ -1040,7 +1502,9 @@ export const NFTCollection = () => {
         {selectedTab === "sell" && (
           <div className="mb-8">
             {!isConnected && (
-              <p className="mt-2 text-sm text-red-600">{lang[langCode].errors.wallet}</p>
+              <p className="mt-2 text-sm text-red-600">
+                {lang[langCode].errors.wallet}
+              </p>
             )}
             {isConnected && (
               <div className="flex flex-col sm:flex-row gap-4">
@@ -1055,7 +1519,7 @@ export const NFTCollection = () => {
                   Sell My Item
                 </button>
                 {balanceWOVER > 0.1 && (
-                  <button 
+                  <button
                     className="w-full sm:w-auto px-6 py-3 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-all duration-200 shadow-sm disabled:bg-slate-300 disabled:cursor-not-allowed whitespace-nowrap"
                     onClick={() => handleWithdrawWOVER()}
                   >
@@ -1070,7 +1534,9 @@ export const NFTCollection = () => {
         {selectedTab === "buy" && (
           <div className="mb-8">
             {!isConnected && (
-              <p className="mt-2 text-sm text-red-600">{lang[langCode].errors.wallet}</p>
+              <p className="mt-2 text-sm text-red-600">
+                {lang[langCode].errors.wallet}
+              </p>
             )}
             {isConnected && (
               <div className="flex flex-col sm:flex-row gap-4">
@@ -1096,130 +1562,202 @@ export const NFTCollection = () => {
           </div>
         )}
         {/* Modals */}
-        {showNftTransferModal && (
+        {(showNftTransferModal || showMyNftsModal) && (
           <div className="fixed inset-0 z-50 overflow-y-auto">
             <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-              <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-                <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+              <div
+                className="fixed inset-0 transition-opacity"
+                aria-hidden="true"
+              >
+                <div
+                  className="absolute inset-0 bg-gray-500 opacity-75"
+                  onClick={() => {
+                    modalClose();
+                  }}
+                ></div>
               </div>
 
               <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
                 <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                   <div className="sm:flex sm:items-start">
                     <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
-                      <h3 className="text-lg leading-6 font-medium text-slate-900 mb-4">
-                        Transfer My NFT
-                      </h3>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                        {myNfts.map((nft) => (
-                          <div
-                            key={nft.tokenId}
-                            className="group cursor-pointer"
-                            onClick={() => handleTransferNft(nft.tokenId)}
-                          >
-                            <div className="relative aspect-square overflow-hidden rounded-lg border border-slate-200 group-hover:border-slate-300">
-                              <img
-                                src={nft.imageUrl}
-                                alt={`Token ${nft.tokenId}`}
-                                className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-200"
-                              />
-                              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity" />
-                            </div>
-                            <p className="mt-2 text-sm text-center text-slate-600">
-                              Token #{nft.tokenId}
-                            </p>
+                      <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-lg leading-6 font-medium text-slate-900">
+                          {showMyNftsModal
+                            ? "Select NFT to " +
+                              (sellType === "ASK" ? "Sell" : "Accept Bid")
+                            : "Select NFT to Transfer"}
+                        </h3>
+                        {selectedNfts.size > 0 && (
+                          <div className="flex items-center gap-4">
+                            <span className="text-sm text-slate-600">
+                              {selectedNfts.size} NFT
+                              {selectedNfts.size > 1 ? "s" : ""} selected
+                            </span>
+                            <button
+                              onClick={handleBulkAction}
+                              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                            >
+                              {showMyNftsModal
+                                ? `${
+                                    sellType === "ASK" ? "Sell" : "Accept Bid"
+                                  } Selected`
+                                : "Transfer Selected"}
+                            </button>
                           </div>
-                        ))}
+                        )}
                       </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                  <button
-                    type="button"
-                    className="mt-3 w-full inline-flex justify-center rounded-lg border border-slate-200 shadow-sm px-4 py-2 bg-white text-base font-medium text-slate-900 hover:bg-slate-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition-all duration-200"
-                    onClick={() => setShowNftTransferModal(false)}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-        {/* Modals */}
-        {showMyNftsModal && (
-          <div className="fixed inset-0 z-50 overflow-y-auto">
-            <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-              <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-                <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
-              </div>
 
-              <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
-                <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                  <div className="sm:flex sm:items-start">
-                    <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
-                      <h3 className="text-lg leading-6 font-medium text-slate-900 mb-4">
-                        Select NFT to {sellType === "ASK" ? "Sell" : "Accept Bid"}
-                      </h3>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                        {myNfts.map((nft) => (
-                          <div
-                            key={nft.tokenId}
-                            className="group cursor-pointer"
-                            onClick={() => handleSelectNft(nft.tokenId)}
-                          >
-                            <div className="relative aspect-square overflow-hidden rounded-lg border border-slate-200 group-hover:border-slate-300">
-                              <img
-                                src={nft.imageUrl}
-                                alt={`Token ${nft.tokenId}`}
-                                className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-200"
-                              />
-                              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity" />
+                      {showMyNftsModal && sellType == "BID" && (
+                        <div className="flex flex-col justify-center items-center gap-3 mb-6 bg-slate-50 p-4 rounded-lg">
+                          <div className="flex flex-col gap-1.5 w-full">
+                            <div className="flex justify-between items-center">
+                              <span className="text-slate-500">
+                                Total Bids:
+                              </span>
+                              <span className="text-slate-900 font-medium">
+                                {bids.length}
+                              </span>
                             </div>
-                            <p className="mt-2 text-sm text-center text-slate-600">
-                              Token #{nft.tokenId}
-                            </p>
+
+                            <div className="flex justify-between items-center">
+                              <span className="text-slate-500">
+                                Lowest Bid Price:
+                              </span>
+                              <span className="text-slate-900 font-medium">
+                                {Math.min(
+                                  ...bids.map((bid) => Number(bid.price))
+                                )}{" "}
+                                OVER
+                              </span>
+                            </div>
+
+                            <div className="border-t border-slate-200 my-2"></div>
+
+                            <div className="flex justify-between items-center">
+                              <span className="text-slate-500">
+                                Selected Bid Prices:
+                              </span>
+                              <span className="text-slate-900 font-medium">
+                                {bids
+                                  .slice(0, selectedNfts.size)
+                                  .map((bid) => bid.price)
+                                  .join(" / ")}{" "}
+                                OVER
+                              </span>
+                            </div>
+
+                            <div className="flex justify-between items-center text-lg font-medium">
+                              <span className="text-slate-500">
+                                Total Get Amount:
+                              </span>
+                              <span className="text-indigo-600">
+                                {bids
+                                  .slice(0, selectedNfts.size)
+                                  .map((bid) => Number(bid.price))
+                                  .reduce((a, b) => a + b, 0)}{" "}
+                                OVER
+                              </span>
+                            </div>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                  <div className="relative group">
-                    <button
-                      type="button"
-                      className="w-full sm:w-auto mb-3 sm:mb-0 inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none sm:ml-3 sm:text-sm transition-all duration-200"
-                      onClick={async () => {
-                        const txhash = await tryWriteContractAsync({
-                          address: address,
-                          abi: abi.ERC721,
-                          functionName: "setApprovalForAll",
-                          args: [env.contracts.NFTExchange, !isApprovedForAll],
-                        });
-                        setHash(txhash);
-                        setUpdate(update + 1);
-                      }}
-                    >
-                      {isApprovedForAll ? "Cancel Approval" : "Approve All NFTs"}
-                    </button>
-                    <div className="absolute bottom-full transform translate-x-0 sm:-translate-x-1/2 hidden group-hover:block w-64 z-50 m-10">
-                      <div className="bg-slate-800 text-white text-sm rounded-lg p-2 shadow-lg">
-                        <div className="relative">
-                          {isApprovedForAll ? lang[langCode].tooltips.cancelApproval : lang[langCode].tooltips.approveAll}
-                          <div className="absolute w-2 h-2 bg-slate-800 transform rotate-45 -translate-x-1/2 -bottom-1"></div>
                         </div>
+                      )}
+
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                        {currentNfts.map((nft) => (
+                          <div
+                            key={nft.tokenId}
+                            className={`group cursor-pointer relative ${
+                              selectedNfts.has(nft.tokenId)
+                                ? "ring-2 ring-indigo-500 rounded-lg"
+                                : ""
+                            }`}
+                            onClick={() => handleNftSelection(nft.tokenId)}
+                          >
+                            <div className="relative aspect-square overflow-hidden rounded-lg border border-slate-200 group-hover:border-slate-300">
+                              <img
+                                src={nft.imageUrl}
+                                alt={`Token ${nft.tokenId}`}
+                                className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-200"
+                              />
+                              <div
+                                className={`absolute inset-0 bg-black transition-opacity ${
+                                  selectedNfts.has(nft.tokenId)
+                                    ? "bg-opacity-20"
+                                    : "bg-opacity-0 group-hover:bg-opacity-10"
+                                }`}
+                              />
+                              {selectedNfts.has(nft.tokenId) && (
+                                <div className="absolute top-2 right-2 bg-indigo-500 rounded-full p-1">
+                                  <svg
+                                    className="w-4 h-4 text-white"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth="2"
+                                      d="M5 13l4 4L19 7"
+                                    />
+                                  </svg>
+                                </div>
+                              )}
+                            </div>
+                            <p className="mt-2 text-sm text-center text-slate-600">
+                              Token #{nft.tokenId}
+                            </p>
+                          </div>
+                        ))}
                       </div>
+
+                      {/* 페이지네이션 컨트롤 */}
+                      {totalNftPages > 1 && (
+                        <div className="flex justify-center items-center gap-2 mt-6">
+                          <button
+                            onClick={() =>
+                              handleNftPageChange(currentNftPage - 1)
+                            }
+                            disabled={currentNftPage === 1}
+                            className="px-3 py-1 rounded-lg border border-slate-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                          >
+                            &lt;
+                          </button>
+
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min="1"
+                              max={totalNftPages}
+                              value={currentNftPage}
+                              onChange={(e) => {
+                                const value = parseInt(e.target.value);
+                                if (value >= 1 && value <= totalNftPages) {
+                                  handleNftPageChange(value);
+                                }
+                              }}
+                              className="w-12 px-2 py-1 text-center border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                            <span className="text-slate-600">/</span>
+                            <span className="text-slate-600">
+                              {totalNftPages}
+                            </span>
+                          </div>
+
+                          <button
+                            onClick={() =>
+                              handleNftPageChange(currentNftPage + 1)
+                            }
+                            disabled={currentNftPage === totalNftPages}
+                            className="px-3 py-1 rounded-lg border border-slate-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                          >
+                            &gt;
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    className="mt-3 sm:mt-0 w-full inline-flex justify-center rounded-lg border border-slate-200 shadow-sm px-4 py-2 bg-white text-base font-medium text-slate-900 hover:bg-slate-50 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm transition-all duration-200"
-                    onClick={() => setShowMyNftsModal(false)}
-                  >
-                    Cancel
-                  </button>
                 </div>
               </div>
             </div>
@@ -1229,7 +1767,10 @@ export const NFTCollection = () => {
         {showBidModal && (
           <div className="fixed inset-0 z-50 overflow-y-auto">
             <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-              <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+              <div
+                className="fixed inset-0 transition-opacity"
+                aria-hidden="true"
+              >
                 <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
               </div>
 
@@ -1268,7 +1809,7 @@ export const NFTCollection = () => {
                   <button
                     type="button"
                     className="mt-3 w-full inline-flex justify-center rounded-lg border border-slate-200 shadow-sm px-4 py-2 bg-white text-base font-medium text-slate-900 hover:bg-slate-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition-all duration-200"
-                    onClick={() => setShowBidModal(false)}
+                    onClick={() => modalClose()}
                   >
                     Cancel
                   </button>
@@ -1302,23 +1843,49 @@ export const NFTCollection = () => {
         {(isPending || isConfirming || isWaiting) && (
           <div className="fixed inset-0 z-50 overflow-y-auto">
             <div className="flex items-center justify-center min-h-screen px-4 text-center">
-              <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-                <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+              <div
+                className="fixed inset-0 transition-opacity"
+                aria-hidden="true"
+              >
+                <div
+                  className="absolute inset-0 bg-gray-500 opacity-75"
+                  onClick={() => {
+                    modalClose();
+                  }}
+                ></div>
               </div>
 
               <div className="inline-block bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-sm sm:w-full sm:p-6">
                 <div className="flex flex-col items-center">
                   <div className="mb-4">
-                    <svg className="animate-spin h-8 w-8 text-slate-900" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <svg
+                      className="animate-spin h-8 w-8 text-slate-900"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
                     </svg>
                   </div>
                   <div className="mt-3 text-center sm:mt-5">
                     <h3 className="text-lg leading-6 font-medium text-slate-900">
-                      {isPending ? "Waiting for confirmation..." : 
-                       isConfirming ? "Transaction is being confirmed..." :
-                       "Processing your request..."}
+                      {isPending
+                        ? "Waiting for confirmation..."
+                        : isConfirming
+                        ? "Transaction is being confirmed..."
+                        : "Processing your request..."}
                     </h3>
                     {hash && (
                       <div className="mt-2">
