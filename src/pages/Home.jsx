@@ -20,10 +20,9 @@ export const Home = () => {
         <p className="text-slate-600 text-center mb-16 max-w-2xl mx-auto text-lg">
           Discover and trade unique digital collectibles on the OverProtocol
         </p>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          <h1>Shut down for a month. If you need this site, you can take the code since it's open-source and use it. All of the deposited OVER in the contract has been returned.</h1>
-          {/* {nfts.map((nft) => (
+        <h1>Shut down for a month. If you need this site, you can take the code since it's open-source and use it. All of the deposited OVER in the contract has been returned.</h1>
+        {/* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {nfts.map((nft) => (
             <Link
               key={nft.address}
               to={`/nft/${nft.address}`}
@@ -45,8 +44,8 @@ export const Home = () => {
                 </p>
               </div>
             </Link>
-          ))} */}
-        </div>
+          ))}
+        </div> */}
       </div>
     </div>
   );
