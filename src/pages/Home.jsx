@@ -22,7 +22,8 @@ export const Home = () => {
         </p>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {nfts.map((nft) => (
+          <h1>Shut down for a month. If you need this site, you can take the code since it's open-source and use it. All of the deposited OVER in the contract has been returned.</h1>
+          {/* {nfts.map((nft) => (
             <Link
               key={nft.address}
               to={`/nft/${nft.address}`}
@@ -44,7 +45,7 @@ export const Home = () => {
                 </p>
               </div>
             </Link>
-          ))}
+          ))} */}
         </div>
       </div>
     </div>
