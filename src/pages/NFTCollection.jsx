@@ -75,11 +75,10 @@ export const NFTCollection = () => {
 
   // 페이지 로드 시 잘못된 NFT 주소면 홈으로 이동
   useEffect(() => {
-    navigate("/");
-    // const NFTs = env.NFTs.map((nft) => nft.address);
-    // if (!NFTs.includes(address)) {
-    //   navigate("/");
-    // }
+    const NFTs = env.NFTs.map((nft) => nft.address);
+    if (!NFTs.includes(address)) {
+      navigate("/");
+    }
   }, [address, navigate]);
 
   // 지갑이 연결된 경우, 사용자가 보유 중인 NFT 목록 불러오기
