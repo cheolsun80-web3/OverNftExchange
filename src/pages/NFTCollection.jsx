@@ -94,7 +94,7 @@ export const NFTCollection = () => {
         }
         loadNFTs.push(update);
         let nfts = await fetch(
-          `https://scan-api.over.network/api/v2/tokens/${address}/instances?holder_address_hash=${wallet}`
+          `https://corsproxy.io/?url=https://scan-api.over.network/api/v2/tokens/${address}/instances?holder_address_hash=${wallet}`
         ).then((r) => r.json());
 
         const items = [];
@@ -106,7 +106,7 @@ export const NFTCollection = () => {
         }
         while (nfts.next_page_params) {
           nfts = await fetch(
-            `https://scan-api.over.network/api/v2/tokens/${address}/instances?holder_address_hash=${wallet}&unique_token=${nfts.next_page_params.unique_token}`
+            `https://corsproxy.io/?url=https://scan-api.over.network/api/v2/tokens/${address}/instances?holder_address_hash=${wallet}&unique_token=${nfts.next_page_params.unique_token}`
           ).then((r) => r.json());
           for (const item of nfts.items || []) {
             items.push({
